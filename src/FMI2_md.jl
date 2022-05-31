@@ -14,7 +14,6 @@ using EzXML
 using FMICore: fmi2ModelDescriptionModelExchange, fmi2ModelDescriptionCoSimulation, fmi2ModelDescriptionDefaultExperiment
 using FMICore: fmi2ModelDescriptionReal, fmi2ModelDescriptionBoolean, fmi2ModelDescriptionInteger, fmi2ModelDescriptionString, fmi2ModelDescriptionEnumeration
 using FMICore: fmi2ModelDescriptionModelStructure
-using FMICore: fmi2DependencyKind
 using FMICore: FMU2
 
 ######################################
