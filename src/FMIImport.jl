@@ -27,6 +27,7 @@ export fmi2ValueReferenceFormat, fmi3ValueReferenceFormat
 
 include("FMI2_convert.jl")
 include("FMI2_c.jl")
+include("FMI2_coloring.jl")
 include("FMI2_int.jl")
 include("FMI2_ext.jl")
 include("FMI2_md.jl")
@@ -43,6 +44,9 @@ export fmi2GetDirectionalDerivative!, fmi2SetRealInputDerivatives, fmi2GetRealOu
 export fmi2DoStep, fmi2CancelStep, fmi2GetStatus!, fmi2GetRealStatus!, fmi2GetIntegerStatus!, fmi2GetBooleanStatus!, fmi2GetStringStatus!
 export fmi2SetTime, fmi2SetContinuousStates, fmi2EnterEventMode, fmi2NewDiscreteStates!, fmi2EnterContinuousTimeMode, fmi2CompletedIntegratorStep!
 export fmi2GetDerivatives!, fmi2GetEventIndicators!, fmi2GetContinuousStates!, fmi2GetNominalsOfContinuousStates!
+
+# FMI2_coloring.jl
+export partialColoringD2, starColoringD2Alg1, starColoringV2Alg2
 
 # FMI2_convert.jl
 export fmi2StringToValueReference, fmi2ValueReferenceToString, fmi2ModelVariablesForValueReference
