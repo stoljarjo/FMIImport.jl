@@ -1,5 +1,3 @@
-using FMI
-using FMI: fmi2GetDependenciesA
 using LightGraphs
 using LightGraphs: AbstractGraph
 using SparseArrays: findnz
@@ -9,7 +7,8 @@ Create a SimpleGraph out of the dependency matrix.
 """
 function createGraph(fmu::FMU2) ::SimpleGraph
     if !isdefined(fmu, :dependencies)
-        fmi2GetDependenciesA(fmu)
+        @warn "Dependencies are not defined"
+        return
     end
     I, J, V = findnz(fmu.dependencies)
 
