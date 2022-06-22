@@ -19,7 +19,7 @@ function createGraph(fmu::FMU2) ::SimpleGraph
     fmu.graph  = SimpleGraph(num_states * 2)
     for edge in zip(I, J)
         v1, v2 = edge
-        add_edge!(g, v1, v2)
+        add_edge!(fmu.graph, v1, v2)
     end
     fmu.graph
 end
