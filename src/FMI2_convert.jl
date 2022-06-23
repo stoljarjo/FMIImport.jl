@@ -56,7 +56,7 @@ function fmi2StringToValueReference(md::fmi2ModelDescription, names::Array{Strin
     vr = Array{fmi2ValueReference}(undef,0)
     for name in names
         reference = fmi2StringToValueReference(md, name)
-        if reference == nothing
+        if reference === nothing
             @warn "Value reference for variable '$name' not found, skipping."
         else
             push!(vr, reference)
