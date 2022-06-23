@@ -20,7 +20,7 @@ function fmi2Unzip(pathToFMU::String; unpackPath=nothing)
     fileNameExt = basename(pathToFMU)
     (fileName, fileExt) = splitext(fileNameExt)
         
-    if unpackPath == nothing
+    if unpackPath === nothing
         # cleanup=true leads to issues with automatic testing on linux server.
         unpackPath = mktempdir(; prefix="fmijl_", cleanup=false)
     end
@@ -81,7 +81,7 @@ end
 # Prints an info text and returns C_NULL if not (soft-check).
 function dlsym_opt(libHandle, symbol)
     addr = dlsym(libHandle, symbol; throw_error=false)
-    if addr == nothing
+    if addr === nothing
         @info "This FMU does not support function '$symbol'."
         addr = Ptr{Cvoid}(C_NULL)
     end
@@ -350,7 +350,7 @@ function fmi2Instantiate!(fmu::FMU2; pushComponents::Bool = true, visible::Bool 
         end
     end
 
-    if component != nothing
+    if component !== nothing
         @info "fmi2Instantiate!(...): This component was already registered. This may be because you created the FMU by yourself with FMIExport.jl."
     else
         component = FMU2Component(compAddr, fmu) 
@@ -603,19 +603,19 @@ function fmi2Get!(comp::FMU2Component, vrs::fmi2ValueReferenceFormat, dstArray::
         mv = fmi2ModelVariablesForValueReference(comp.fmu.modelDescription, vr)
         mv = mv[1]
 
-        if mv._Real != nothing 
+        if mv._Real !== nothing 
             #@assert isa(dstArray[i], Real) "fmi2Get!(...): Unknown data type for value reference `$(vr)` at index $(i), should be `Real`, is `$(typeof(dstArray[i]))`."
             dstArray[i] = fmi2GetReal(comp, vr)
-        elseif mv._Integer != nothing
+        elseif mv._Integer !== nothing
             #@assert isa(dstArray[i], Union{Real, Integer}) "fmi2Get!(...): Unknown data type for value reference `$(vr)` at index $(i), should be `Integer`, is `$(typeof(dstArray[i]))`."
             dstArray[i] = fmi2GetInteger(comp, vr)
-        elseif mv._Boolean != nothing
+        elseif mv._Boolean !== nothing
             #@assert isa(dstArray[i], Union{Real, Bool}) "fmi2Get!(...): Unknown data type for value reference `$(vr)` at index $(i), should be `Bool`, is `$(typeof(dstArray[i]))`."
             dstArray[i] = fmi2GetBoolean(comp, vr)
-        elseif mv._String != nothing
+        elseif mv._String !== nothing
             #@assert isa(dstArray[i], String) "fmi2Get!(...): Unknown data type for value reference `$(vr)` at index $(i), should be `String`, is `$(typeof(dstArray[i]))`."
             dstArray[i] = fmi2GetString(comp, vr)
-        elseif mv._Enumeration != nothing
+        elseif mv._Enumeration !== nothing
             @warn "fmi2Get!(...): Currently not implemented for fmi2Enum."
         else 
             @assert isa(dstArray[i], Real) "fmi2Get!(...): Unknown data type for value reference `$(vr)` at index $(i), is `$(mv.datatype.datatype)`."
@@ -644,19 +644,19 @@ function fmi2Set(comp::FMU2Component, vrs::fmi2ValueReferenceFormat, srcArray::A
         mv = fmi2ModelVariablesForValueReference(comp.fmu.modelDescription, vr)
         mv = mv[1]
 
-        if mv._Real != nothing
+        if mv._Real !== nothing
             @assert isa(srcArray[i], Real) "fmi2Set(...): Unknown data type for value reference `$(vr)` at index $(i), should be `Real`, is `$(typeof(srcArray[i]))`."
             retcodes[i] = fmi2SetReal(comp, vr, srcArray[i])
-        elseif mv._Integer != nothing
+        elseif mv._Integer !== nothing
             @assert isa(srcArray[i], Union{Real, Integer}) "fmi2Set(...): Unknown data type for value reference `$(vr)` at index $(i), should be `Integer`, is `$(typeof(srcArray[i]))`."
             retcodes[i] = fmi2SetInteger(comp, vr, Integer(srcArray[i]))
-        elseif mv._Boolean != nothing
+        elseif mv._Boolean !== nothing
             @assert isa(srcArray[i], Union{Real, Bool}) "fmi2Set(...): Unknown data type for value reference `$(vr)` at index $(i), should be `Bool`, is `$(typeof(srcArray[i]))`."
             retcodes[i] = fmi2SetBoolean(comp, vr, Bool(srcArray[i]))
-        elseif mv._String != nothing
+        elseif mv._String !== nothing
             @assert isa(srcArray[i], String) "fmi2Set(...): Unknown data type for value reference `$(vr)` at index $(i), should be `String`, is `$(typeof(srcArray[i]))`."
             retcodes[i] = fmi2SetString(comp, vr, srcArray[i])
-        elseif mv._Enumeration != nothing
+        elseif mv._Enumeration !== nothing
             @warn "fmi2Set(...): Currently not implemented for fmi2Enum."
         else 
             @assert false "fmi2Set(...): Unknown data type for value reference `$(vr)` at index $(i), is `$(mv.datatype.datatype)`."
@@ -703,15 +703,15 @@ function fmi2GetStartValue(c::FMU2Component, vrs::fmi2ValueReferenceFormat = c.f
 end 
 
 function fmi2GetStartValue(mv::fmi2ScalarVariable)
-    if mv._Real != nothing
+    if mv._Real !== nothing
         return mv._Real.start
-    elseif mv._Integer != nothing
+    elseif mv._Integer !== nothing
         return mv._Integer.start
-    elseif mv._Boolean != nothing
+    elseif mv._Boolean !== nothing
         return mv._Boolean.start
-    elseif mv._String != nothing
+    elseif mv._String !== nothing
         return mv._String.start
-    elseif mv._Enumeration != nothing
+    elseif mv._Enumeration !== nothing
         return mv._Enumeration.start
     else 
         @assert false "fmi2GetStartValue(...): Variable $(mv) has no data type."

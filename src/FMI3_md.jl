@@ -345,7 +345,7 @@ end
 
 # Parses an Integer value represented by a string.
 function fmi3parseInteger(s::Union{String, SubString{String}}; onfail=nothing)
-    if onfail == nothing
+    if onfail === nothing
         return parse(Int, s)
     else
         try

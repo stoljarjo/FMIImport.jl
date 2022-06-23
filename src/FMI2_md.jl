@@ -266,7 +266,7 @@ function parseModelVariables(nodes::EzXML.Node, md::fmi2ModelDescription)
         end
 
         # generic attributes
-        if typenode != nothing 
+        if typenode !== nothing 
             if haskey(node.firstelement, "declaredType")
                 typenode.declaredType = node.firstelement["declaredType"]
             end
@@ -305,7 +305,7 @@ function parseUnknwon(node::EzXML.Node)
             end
         end
 
-        if varDep.dependencies != nothing && varDep.dependenciesKind != nothing
+        if varDep.dependencies !== nothing && varDep.dependenciesKind !== nothing
             if length(varDep.dependencies) != length(varDep.dependenciesKind)
                 @warn "Length of field dependencies ($(length(varDep.dependencies))) doesn't match length of dependenciesKind ($(length(varDep.dependenciesKind)))."   
             end
@@ -400,7 +400,7 @@ function parseBoolean(s::Union{String, SubString{String}}; onfail=nothing)
     elseif s == "false"
         return false
     else
-        @assert onfail != nothing ["parseBoolean(...) unknown boolean value '$s'."]
+        @assert onfail !== nothing ["parseBoolean(...) unknown boolean value '$s'."]
         return onfail
     end
 end
@@ -416,7 +416,7 @@ end
 
 # Parses an Integer value represented by a string.
 function parseInteger(s::Union{String, SubString{String}}; onfail=nothing)
-    if onfail == nothing
+    if onfail === nothing
         return parse(fmi2Integer, s)
     else
         try
@@ -438,7 +438,7 @@ end
 
 # Parses a real value represented by a string.
 function parseReal(s::Union{String, SubString{String}}; onfail=nothing)
-    if onfail == nothing
+    if onfail === nothing
         return parse(fmi2Real, s)
     else
         try
@@ -616,7 +616,7 @@ Returns startTime from DefaultExperiment if defined else defaults to nothing.
     ToDo: update docstring format.
 """
 function fmi2GetDefaultStartTime(md::fmi2ModelDescription)
-    if md.defaultExperiment == nothing 
+    if md.defaultExperiment === nothing 
         return nothing
     end
     return md.defaultExperiment.startTime
@@ -628,7 +628,7 @@ Returns stopTime from DefaultExperiment if defined else defaults to nothing.
     ToDo: update docstring format.
 """
 function fmi2GetDefaultStopTime(md::fmi2ModelDescription)
-    if md.defaultExperiment == nothing 
+    if md.defaultExperiment === nothing 
         return nothing
     end
     return md.defaultExperiment.stopTime
@@ -640,7 +640,7 @@ Returns tolerance from DefaultExperiment if defined else defaults to nothing.
 ToDo: update docstring format.
 """
 function fmi2GetDefaultTolerance(md::fmi2ModelDescription)
-    if md.defaultExperiment == nothing 
+    if md.defaultExperiment === nothing 
         return nothing
     end
     return md.defaultExperiment.tolerance
@@ -652,7 +652,7 @@ Returns stepSize from DefaultExperiment if defined else defaults to nothing.
 ToDo: update docstring format.
 """
 function fmi2GetDefaultStepSize(md::fmi2ModelDescription)
-    if md.defaultExperiment == nothing 
+    if md.defaultExperiment === nothing 
         return nothing
     end
     return md.defaultExperiment.stepSize
@@ -727,7 +727,7 @@ Returns true, if the FMU supports co simulation
 ToDo: update docstring format.
 """
 function fmi2IsCoSimulation(md::fmi2ModelDescription)
-    return (md.coSimulation != nothing)
+    return (md.coSimulation !== nothing)
 end
 
 """
@@ -736,7 +736,7 @@ Returns true, if the FMU supports model exchange
 ToDo: update docstring format.
 """
 function fmi2IsModelExchange(md::fmi2ModelDescription)
-    return (md.modelExchange != nothing)
+    return (md.modelExchange !== nothing)
 end
 
 ##################################
@@ -802,7 +802,7 @@ Returns true, if the FMU supports the getting/setting of states
 ToDo: update docstring format.
 """
 function fmi2CanGetSetState(md::fmi2ModelDescription)
-    return (md.coSimulation != nothing && md.coSimulation.canGetAndSetFMUstate) || (md.modelExchange != nothing && md.modelExchange.canGetAndSetFMUstate)
+    return (md.coSimulation !== nothing && md.coSimulation.canGetAndSetFMUstate) || (md.modelExchange !== nothing && md.modelExchange.canGetAndSetFMUstate)
 end
 
 """
@@ -811,7 +811,7 @@ Returns true, if the FMU state can be serialized
 ToDo: update docstring format.
 """
 function fmi2CanSerializeFMUstate(md::fmi2ModelDescription)
-    return (md.coSimulation != nothing && md.coSimulation.canSerializeFMUstate) || (md.modelExchange != nothing && md.modelExchange.canSerializeFMUstate)
+    return (md.coSimulation !== nothing && md.coSimulation.canSerializeFMUstate) || (md.modelExchange !== nothing && md.modelExchange.canSerializeFMUstate)
 end
 
 """
@@ -820,7 +820,7 @@ Returns true, if the FMU provides directional derivatives
 ToDo: update docstring format.
 """
 function fmi2ProvidesDirectionalDerivative(md::fmi2ModelDescription)
-    return (md.coSimulation != nothing && md.coSimulation.providesDirectionalDerivative) || (md.modelExchange != nothing && md.modelExchange.providesDirectionalDerivative)
+    return (md.coSimulation !== nothing && md.coSimulation.providesDirectionalDerivative) || (md.modelExchange !== nothing && md.modelExchange.providesDirectionalDerivative)
 end
 
 """
