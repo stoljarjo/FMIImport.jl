@@ -56,11 +56,12 @@ function partialColoringD2(fmu::FMU2; coloringType::fmi2Coloring=fmi2ColoringRow
 end
 function partialColoringD2(g::AbstractGraph; coloringType::fmi2Coloring)
     @info "partialColoringD2: Start partial graph coloring."
-        
-    vertices = getVertices(nv(g); coloringType=coloringType)
+    
+    num_all_vertices = nv(g)
+    vertices = getVertices(num_all_vertices; coloringType=coloringType)
 
-    forbidden_colors = zeros(Int, length(vertices))
-    colorvec = zeros(Int, length(vertices))
+    forbidden_colors = zeros(Int, num_all_vertices)
+    colorvec = zeros(Int, num_all_vertices)
     
     for v in vertices
         for w in neighbors(g, v)
@@ -72,7 +73,7 @@ function partialColoringD2(g::AbstractGraph; coloringType::fmi2Coloring)
         end
         colorvec[v] = getMinColor(forbidden_colors, v)
     end
-    (coloringType, colorvec)
+    colorvec[vertices]
 end
 
 """
