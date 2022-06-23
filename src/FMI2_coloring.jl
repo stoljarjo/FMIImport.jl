@@ -24,6 +24,17 @@ function createGraph(fmu::FMU2) ::SimpleGraph
     fmu.graph
 end
 
+function getVertices(num_vertices::Int; coloringType::fmi2Coloring)
+    num_half_vertices = Integer(num_vertices/2)
+    if coloringType == fmi2ColoringRows
+        return 1:num_half_vertices
+    elseif coloringType == fmi2ColoringColumns
+        return num_half_vertices+1:num_vertices
+    else
+        return 1:num_vertices
+    end
+end
+
 """
 Reference: 
   What Color Is Your Jacobian? Graph Coloring for Computing Derivatives
@@ -33,23 +44,25 @@ Reference:
 
   ==> fast but biggest coloring
 """
-function partialColoringD2(fmu::FMU2)
+function partialColoringD2(fmu::FMU2; coloringType::fmi2Coloring=fmi2ColoringRows)
     if !isdefined(fmu, :graph)
         createGraph(fmu)
     end
-    fmu.colors = partialColoringD2(fmu.graph)
+    if !isdefined(fmu, :colors) || fmu.colorType != coloringType
+        fmu.colorType = coloringType
+        fmu.colors = partialColoringD2(fmu.graph; coloringType=coloringType)
+    end
+    fmu.colors
 end
-function partialColoringD2(g::AbstractGraph)
+function partialColoringD2(g::AbstractGraph; coloringType::fmi2Coloring)
     @info "partialColoringD2: Start partial graph coloring."
+        
+    vertices = getVertices(nv(g); coloringType=coloringType)
+
+    forbidden_colors = zeros(Int, length(vertices))
+    colorvec = zeros(Int, length(vertices))
     
-    vertices = nv(g)
-    num_column_vertices = Integer(vertices/2)
-    V1 = 1:num_column_vertices
-    
-    forbidden_colors = zeros(Int, num_column_vertices)
-    colorvec = zeros(Int, num_column_vertices)
-    
-    for v in V1
+    for v in vertices
         for w in neighbors(g, v)
             for x in neighbors(g, w)
                 if colorvec[x] != 0
@@ -59,8 +72,7 @@ function partialColoringD2(g::AbstractGraph)
         end
         colorvec[v] = getMinColor(forbidden_colors, v)
     end
-
-    colorvec[1:num_column_vertices]
+    (coloringType, colorvec)
 end
 
 """
@@ -72,20 +84,24 @@ Reference:
 
   ==> slow but smallest coloring
 """
-function starColoringD2Alg1(fmu::FMU2)
+function starColoringD2Alg1(fmu::FMU2; coloringType::fmi2Coloring=fmi2ColoringRows)
     if !isdefined(fmu, :graph)
         createGraph(fmu)
     end
-    fmu.colors = starColoringD2Alg1(fmu.graph)
+    if !isdefined(fmu, :colors) || fmu.colorType != coloringType
+        fmu.colorType = coloringType
+        fmu.colors = starColoringD2Alg1(fmu.graph; coloringType=coloringType)
+    end
+    fmu.colors
 end
-function starColoringD2Alg1(g::AbstractGraph)
+function starColoringD2Alg1(g::AbstractGraph; coloringType::fmi2Coloring)
     @info "starColoringD2Alg1: Start star graph coloring (algorithm 1)."
 
-    vertices = nv(g)
-    colorvec = zeros(Int, vertices)
-    forbidden_colors = zeros(Int, vertices)
+    num_all_vertices = nv(g)
+    vertices = getVertices(num_all_vertices; coloringType=coloringType)
 
-    num_column_vertices = Integer(vertices/2)
+    colorvec = zeros(Int, num_all_vertices)
+    forbidden_colors = zeros(Int, num_all_vertices)
 
     for vertex_i in 1:vertices
         for w in inneighbors(g, vertex_i)
@@ -112,10 +128,9 @@ function starColoringD2Alg1(g::AbstractGraph)
                 end
             end
         end
-
         colorvec[vertex_i] = getMinColor(forbidden_colors, vertex_i)
     end
-    colorvec[1:num_column_vertices]
+    colorvec[vertices]
 end
 
 """
@@ -127,22 +142,26 @@ Reference:
 
   ==> trade of between execution time and coloring
 """
-function starColoringV2Alg2(fmu::FMU2)
+function starColoringV2Alg2(fmu::FMU2; coloringType::fmi2Coloring=fmi2ColoringRows)
     if !isdefined(fmu, :graph)
         createGraph(fmu)
     end
-    fmu.colors = starColoringV2Alg2(fmu.graph)
+    if !isdefined(fmu, :colors) || fmu.colorType != coloringType
+        fmu.colorType = coloringType
+        fmu.colors = starColoringV2Alg2(fmu.graph; coloringType=coloringType)
+    end
+    fmu.colors
 end
-function starColoringV2Alg2(g::AbstractGraph)
+function starColoringV2Alg2(g::AbstractGraph; coloringType::fmi2Coloring)
     @info "starColoringV2Alg2: Start star graph coloring (algorithm 2)."
 
-    vertices = nv(g)
-    colorvec = zeros(Int, vertices)
-    forbidden_colors = zeros(Int, vertices)
+    num_all_vertices = nv(g)
+    vertices = getVertices(num_all_vertices; coloringType=coloringType)
 
-    num_column_vertices = Integer(vertices/2)
+    colorvec = zeros(Int, num_all_vertices)
+    forbidden_colors = zeros(Int, num_all_vertices)
 
-    for vertex_i in 1:num_column_vertices
+    for vertex_i in 1:vertices
         for w in inneighbors(g, vertex_i)
             if colorvec[w] != 0
                 forbidden_colors[colorvec[w]] = vertex_i
@@ -163,7 +182,7 @@ function starColoringV2Alg2(g::AbstractGraph)
         end
         colorvec[vertex_i] = getMinColor(forbidden_colors, vertex_i)
     end
-    colorvec[1:num_column_vertices]
+    colorvec[vertices]
 end
 
 """
