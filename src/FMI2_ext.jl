@@ -519,10 +519,12 @@ function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real},
         return nothing
     end 
 
-    dependencySupported = isdefined(fmu, :dependencies)
+    dependencySupported = isdefined(comp.fmu, :dependencies)
     if dependencySupported
+        @info "`fmi2GetJacobian!:` Dependency supported"
         fmi2GetJacobianDependency!(jac, comp, rdx, rx)
     else
+        @warn "`fmi2GetJacobian!:` No dependency supported"
         fmi2GetJacobianNoDependency!(jac, comp, rdx, rx)
     end
     
