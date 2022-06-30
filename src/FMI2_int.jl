@@ -410,7 +410,7 @@ function fmi2GetDirectionalDerivative(c::FMU2Component,
                                       vKnown_ref::Array{fmi2ValueReference},
                                       dvKnown::Union{Array{fmi2Real}, Nothing} = nothing)
                                       
-    nUnknown = Csize_t(length(vUnknown_ref))     
+    nUnknown = Csize_t(length(vUnknown_ref))
 
     dvUnknown = zeros(fmi2Real, nUnknown)
     status = fmi2GetDirectionalDerivative!(c, vUnknown_ref, vKnown_ref, dvUnknown, dvKnown)
