@@ -506,7 +506,7 @@ For optimization, if the FMU's model description has the optional entry 'depende
 
 If sampling is used, sampling step size can be set (for each direction individually) using optional argument `steps`.
 """
-function fmi2GetJacobian!(jac::Matrix{fmi2Real}, 
+function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real}, 
                           comp::FMU2Component, 
                           rdx::Array{fmi2ValueReference}, 
                           rx::Array{fmi2ValueReference}; 
@@ -529,7 +529,7 @@ function fmi2GetJacobian!(jac::Matrix{fmi2Real},
     return nothing
 end
 
-function fmi2GetJacobianDependency!(jac::Matrix{fmi2Real}, 
+function fmi2GetJacobianDependency!(jac::AbstractMatrix{fmi2Real}, 
                                     comp::FMU2Component, 
                                     rdx::Array{fmi2ValueReference}, 
                                     rx::Array{fmi2ValueReference})
@@ -555,7 +555,7 @@ function fmi2GetJacobianDependency!(jac::Matrix{fmi2Real},
     nothing
 end
 
-function fmi2GetJacobianNoDependency!(jac::Matrix{fmi2Real}, 
+function fmi2GetJacobianNoDependency!(jac::AbstractMatrix{fmi2Real}, 
                                     comp::FMU2Component, 
                                     rdx::Array{fmi2ValueReference}, 
                                     rx::Array{fmi2ValueReference})
