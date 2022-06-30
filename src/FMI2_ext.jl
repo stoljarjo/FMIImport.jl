@@ -8,6 +8,7 @@
 
 using Libdl
 using ZipFile
+using SparseArrays: spzeros, findnz
 
 """
 Create a copy of the .fmu file as a .zip folder and unzips it.
@@ -455,6 +456,29 @@ function fmi2SampleDirectionalDerivative!(c::FMU2Component,
     nothing
 end
 
+function setJacobianEntries!(jac::AbstractMatrix{fmi2Real},
+                            I::AbstractVector{Int},
+                            J::AbstractVector{Int},
+                            entries::AbstractVector{fmi2Real},
+                            inidices::AbstractVector{Int})
+    for i in 1:length(I)
+        if J[i] in inidices 
+            jac[I[i], J[i]] = entries[I[i]]
+        end
+    end
+    nothing
+end
+
+function updateJacobianEntires!(jac::AbstractMatrix{fmi2Real},
+                                I::AbstractVector{Int},
+                                J::AbstractVector{Int},
+                                V::AbstractVector{fmi2Real})
+    for (k, (i, j)) in enumerate(zip(I, J))
+        jac[i,j] = V[k] 
+    end
+    nothing
+end
+
 """
 Builds the jacobian over the FMU `fmu` for FMU value references `rdx` and `rx`, so that the function returns the jacobian ∂rdx / ∂rx.
 
@@ -468,7 +492,7 @@ function fmi2GetJacobian(comp::FMU2Component,
                          rdx::Array{fmi2ValueReference}, 
                          rx::Array{fmi2ValueReference}; 
                          steps::Union{Array{fmi2Real}, Nothing} = nothing)
-    mat = zeros(fmi2Real, length(rdx), length(rx))
+    mat = spzeros(fmi2Real, length(rdx), length(rx))
     fmi2GetJacobian!(mat, comp, rdx, rx; steps=steps)
     return mat
 end
@@ -491,51 +515,67 @@ function fmi2GetJacobian!(jac::Matrix{fmi2Real},
     @assert size(jac) == (length(rdx), length(rx)) ["fmi2GetJacobian!: Dimension missmatch between `jac` $(size(jac)), `rdx` ($length(rdx)) and `rx` ($length(rx))."]
 
     if length(rdx) == 0 || length(rx) == 0
-        jac = zeros(length(rdx), length(rx))
+        jac = spzeros(length(rdx), length(rx))
         return nothing
     end 
 
+    dependencySupported = isdefined(fmu, :dependencies)
+    if dependencySupported
+        fmi2GetJacobianDependency!(jac, comp, rdx, rx)
+    else
+        fmi2GetJacobianNoDependency!(jac, comp, rdx, rx)
+    end
+    
+    return nothing
+end
+
+function fmi2GetJacobianDependency!(jac::Matrix{fmi2Real}, 
+                                    comp::FMU2Component, 
+                                    rdx::Array{fmi2ValueReference}, 
+                                    rx::Array{fmi2ValueReference})
+     
+    ddsupported = fmi2ProvidesDirectionalDerivative(comp.fmu)
+    
+    partialColoringD2(comp.fmu; coloringType=fmi2ColoringColumns)
+
+    directionalDerivatives = zeros(fmi2Real, length(rdx))
+    I, J, _ = findnz(myFMU.dependencies)
+
+    for color in unique(comp.fmu.colors)
+        indices = findall(==(true), comp.fmu.colors .== color)
+        
+        if ddsupported
+            fill!(directionalDerivatives, zero(fmi2Real))
+            fmi2GetDirectionalDerivative!(comp, rdx, rx[indices], directionalDerivatives)
+            setJacobianEntries!(jac, I, J, directionalDerivatives, indices)
+        else 
+            fmi2SampleDirectionalDerivative!(comp, rdx, rx[indices], @view(jac[:, indices]))
+        end
+    end
+    nothing
+end
+
+function fmi2GetJacobianNoDependency!(jac::Matrix{fmi2Real}, 
+                                    comp::FMU2Component, 
+                                    rdx::Array{fmi2ValueReference}, 
+                                    rx::Array{fmi2ValueReference})
+
     ddsupported = fmi2ProvidesDirectionalDerivative(comp.fmu)
 
-    # ToDo: Pick entries based on dependency matrix!
-    #depMtx = fmi2GetDependencies(fmu)
-    rdx_inds = collect(comp.fmu.modelDescription.valueReferenceIndicies[vr] for vr in rdx)
-    rx_inds  = collect(comp.fmu.modelDescription.valueReferenceIndicies[vr] for vr in rx)
-    
     for i in 1:length(rx)
 
         sensitive_rdx_inds = 1:length(rdx)
         sensitive_rdx = rdx
 
-        # sensitive_rdx_inds = Int64[]
-        # sensitive_rdx = fmi2ValueReference[]
-
-        # for j in 1:length(rdx)
-        #     if depMtx[rdx_inds[j], rx_inds[i]] != fmi2DependencyIndependent
-        #         push!(sensitive_rdx_inds, j)
-        #         push!(sensitive_rdx, rdx[j])
-        #     end
-        # end
-
         if length(sensitive_rdx) > 0
             if ddsupported
-                # doesn't work because indexed-views can`t be passed by reference (to ccalls)
-                #try 
-                    fmi2GetDirectionalDerivative!(comp, sensitive_rdx, [rx[i]], view(jac, sensitive_rdx_inds, i))
-                #catch e
-                #    jac[sensitive_rdx_inds, i] = fmi2GetDirectionalDerivative(comp, sensitive_rdx, [rx[i]])
-                #end
-            else 
-                # doesn't work because indexed-views can`t be passed by reference (to ccalls)
-                #try 
-                    fmi2SampleDirectionalDerivative!(comp, sensitive_rdx, [rx[i]], view(jac, sensitive_rdx_inds, i))
-                #catch e 
-                #    jac[sensitive_rdx_inds, i] = fmi2SampleDirectionalDerivative(comp, sensitive_rdx, [rx[i]], steps)
-                #end
+                fmi2GetDirectionalDerivative!(comp, sensitive_rdx, [rx[i]], view(jac, sensitive_rdx_inds, i))
+            else
+                fmi2SampleDirectionalDerivative!(comp, sensitive_rdx, [rx[i]], view(jac, sensitive_rdx_inds, i))
             end
         end
     end
-     
+
     return nothing
 end
 
