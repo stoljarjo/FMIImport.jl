@@ -541,7 +541,7 @@ function fmi2GetJacobianDependency!(jac::AbstractMatrix{fmi2Real},
     partialColoringD2(comp.fmu; coloringType=fmi2ColoringColumns)
 
     directionalDerivatives = zeros(fmi2Real, length(rdx))
-    I, J, _ = findnz(myFMU.dependencies)
+    I, J, _ = findnz(comp.fmu.dependencies)
 
     for color in unique(comp.fmu.colors)
         indices = findall(==(true), comp.fmu.colors .== color)
