@@ -7,22 +7,51 @@ Create a SimpleGraph out of the dependency matrix.
 """
 function createGraph(fmu::FMU2) ::SimpleGraph
     if !isdefined(fmu, :dependencies)
-        @warn "Dependencies are not defined"
+        @warn "Dependencies are not defined!"
         return
     end
-    I, J, V = findnz(fmu.dependencies)
+    I, J, _ = findnz(fmu.dependencies)
 
     # add offset to J vertex
     num_states = size(fmu.dependencies)[1] 
     J .+= num_states
 
     fmu.graph  = SimpleGraph(num_states * 2)
-    for edge in zip(I, J)
-        v1, v2 = edge
+    for (v1, v2) in zip(I, J)
         add_edge!(fmu.graph, v1, v2)
     end
     fmu.graph
 end
+
+function updateGraph(fmu::FMU2, updateType::Symbol) ::SimpleGraph
+    if !isdefined(fmu, :graph)
+        @warn "Graph is not defined!"
+        return nothing
+    end
+
+    if updateType == :all
+        return fmu.graph
+    elseif updateType == :independent
+        return SimpleGraph(nv(fmu.graph))
+    elseif updateType ∉ [:dependent, :constant, :fixed, :tunable, :discrete]
+        @warn "Undefined update type"
+        return fmu.graph
+    end
+    
+    newGraph = SimpleGraph(fmu.graph)
+    I, J, V = findnz(fmu.dependencies)
+    num_states = size(fmu.dependencies)[1] 
+    J .+= num_states
+    dependencyType = fmi2StringToDependencyKind(String(updateType))
+
+    for (i, j, v) in zip(I, J, V)
+        if v != dependencyType
+            rem_edge!(newGraph, i, j)
+        end
+    end
+    return newGraph
+end
+
 
 function getVertices(num_vertices::Int; coloringType::fmi2Coloring)
     num_half_vertices = Integer(num_vertices/2)
