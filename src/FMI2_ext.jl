@@ -492,7 +492,12 @@ function fmi2GetJacobian(comp::FMU2Component,
                          rdx::Array{fmi2ValueReference}, 
                          rx::Array{fmi2ValueReference}; 
                          steps::Union{Array{fmi2Real}, Nothing} = nothing)
-    mat = spzeros(fmi2Real, length(rdx), length(rx))
+    
+    if isdefined(comp.fmu, :dependencies)
+        mat = spzeros(fmi2Real, length(rdx), length(rx))
+    else
+        mat = zeros(fmi2Real, length(rdx), length(rx))
+    end
     fmi2GetJacobian!(mat, comp, rdx, rx; steps=steps)
     return mat
 end
@@ -515,17 +520,14 @@ function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real},
     @assert size(jac) == (length(rdx), length(rx)) ["fmi2GetJacobian!: Dimension missmatch between `jac` $(size(jac)), `rdx` ($length(rdx)) and `rx` ($length(rx))."]
 
     if length(rdx) == 0 || length(rx) == 0
-        jac = spzeros(length(rdx), length(rx))
         return nothing
     end 
 
-    dependencySupported = isdefined(comp.fmu, :dependencies)
-    if dependencySupported
+    if isdefined(comp.fmu, :dependencies)
         @info "`fmi2GetJacobian!:` Dependency supported"
         fmi2GetJacobianDependency!(jac, comp, rdx, rx)
     else
         @warn "`fmi2GetJacobian!:` No dependency supported"
-        jac = Array{fmi2Real}(jac)
         fmi2GetJacobianNoDependency!(jac, comp, rdx, rx)
     end
     
