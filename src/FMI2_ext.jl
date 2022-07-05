@@ -525,6 +525,7 @@ function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real},
         fmi2GetJacobianDependency!(jac, comp, rdx, rx)
     else
         @warn "`fmi2GetJacobian!:` No dependency supported"
+        jac = Array{fmi2Real}(jac)
         fmi2GetJacobianNoDependency!(jac, comp, rdx, rx)
     end
     
