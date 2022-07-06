@@ -23,44 +23,16 @@ function createGraph(fmu::FMU2) ::SimpleGraph
     fmu.graph
 end
 
-function updateGraph(fmu::FMU2, updateType::Symbol) ::SimpleGraph
-    if !isdefined(fmu, :graph)
-        @warn "Graph is not defined!"
-        return nothing
-    end
-
-    if updateType == :all
-        return fmu.graph
-    elseif updateType == :independent
-        return SimpleGraph(nv(fmu.graph))
-    elseif updateType ∉ [:dependent, :constant, :fixed, :tunable, :discrete]
-        @warn "Undefined update type"
-        return fmu.graph
-    end
-    
-    newGraph = SimpleGraph(fmu.graph)
-    I, J, V = findnz(fmu.dependencies)
-    num_states = size(fmu.dependencies)[1] 
-    J .+= num_states
-    dependencyType = fmi2StringToDependencyKind(String(updateType))
-
-    for (i, j, v) in zip(I, J, V)
-        if v != dependencyType
-            rem_edge!(newGraph, i, j)
-        end
-    end
-    return newGraph
-end
-
-
-function getVertices(num_vertices::Int; coloringType::fmi2Coloring)
+function getVertices(num_vertices::Int; coloringType::Symbol) ::UnitRange{Int64}
     num_half_vertices = Integer(num_vertices/2)
-    if coloringType == fmi2ColoringRows
+    if coloringType == :rows
         return 1:num_half_vertices
-    elseif coloringType == fmi2ColoringColumns
+    elseif coloringType == :columns
         return num_half_vertices+1:num_vertices
-    else
+    elseif coloringType == :all
         return 1:num_vertices
+    else
+        @warn "getVertices: Unsupported coloringType= $(String(coloringType))"
     end
 end
 
@@ -73,7 +45,7 @@ Reference:
 
   ==> fast but biggest coloring
 """
-function partialColoringD2(fmu::FMU2; coloringType::fmi2Coloring=fmi2ColoringRows)
+function partialColoringD2(fmu::FMU2; coloringType::Symbol=:columns) ::AbstractVector
     if !isdefined(fmu, :graph)
         createGraph(fmu)
     end
@@ -83,7 +55,7 @@ function partialColoringD2(fmu::FMU2; coloringType::fmi2Coloring=fmi2ColoringRow
     end
     fmu.colors
 end
-function partialColoringD2(g::AbstractGraph; coloringType::fmi2Coloring)
+function partialColoringD2(g::AbstractGraph; coloringType::Symbol) ::AbstractVector
     @info "partialColoringD2: Start partial graph coloring."
     
     num_all_vertices = nv(g)
@@ -112,9 +84,9 @@ Reference:
   https://www.jstor.org/stable/20453700
   ALGORITHM 4.1. A greedy star coloring algorithm.
 
-  ==> slow but smallest coloring
+  ==> slow but smaller coloring
 """
-function starColoringD2Alg1(fmu::FMU2; coloringType::fmi2Coloring=fmi2ColoringRows)
+function starColoringD2Alg1(fmu::FMU2; coloringType::Symbol=:columns) ::AbstractVector
     if !isdefined(fmu, :graph)
         createGraph(fmu)
     end
@@ -124,7 +96,7 @@ function starColoringD2Alg1(fmu::FMU2; coloringType::fmi2Coloring=fmi2ColoringRo
     end
     fmu.colors
 end
-function starColoringD2Alg1(g::AbstractGraph; coloringType::fmi2Coloring)
+function starColoringD2Alg1(g::AbstractGraph; coloringType::Symbol) ::AbstractVector
     @info "starColoringD2Alg1: Start star graph coloring (algorithm 1)."
 
     num_all_vertices = nv(g)
@@ -172,7 +144,7 @@ Reference:
 
   ==> trade of between execution time and coloring
 """
-function starColoringV2Alg2(fmu::FMU2; coloringType::fmi2Coloring=fmi2ColoringRows)
+function starColoringV2Alg2(fmu::FMU2; coloringType::Symbol=:columns) ::AbstractVector
     if !isdefined(fmu, :graph)
         createGraph(fmu)
     end
@@ -182,7 +154,7 @@ function starColoringV2Alg2(fmu::FMU2; coloringType::fmi2Coloring=fmi2ColoringRo
     end
     fmu.colors
 end
-function starColoringV2Alg2(g::AbstractGraph; coloringType::fmi2Coloring)
+function starColoringV2Alg2(g::AbstractGraph; coloringType::Symbol) ::AbstractVector
     @info "starColoringV2Alg2: Start star graph coloring (algorithm 2)."
 
     num_all_vertices = nv(g)
@@ -218,10 +190,44 @@ end
 """
 Returns the minimal color index.
 """
-function getMinColor(forbidden_colors::AbstractVector, vertex_i::Integer)
+function getMinColor(forbidden_colors::AbstractVector, vertex_i::Integer) ::Int
     c = 1
     while (forbidden_colors[c] == vertex_i)
         c+=1
     end
     c
+end
+
+function updateColoring!(fmu::FMU2; updateType::Symbol, coloringType::Symbol=:columns) ::AbstractVector
+    if !isdefined(fmu, :graph)
+        createGraph(fmu)
+    end
+
+    graph = updateGraph(fmu; updateType=updateType)
+    I, J, V = findnz(fmu.dependencies)
+    num_states = size(fmu.dependencies)[1] 
+    J .+= num_states
+    dependencyType = fmi2StringToDependencyKind(String(updateType))
+
+    for (i, j, v) in zip(I, J, V)
+        if v != dependencyType
+            rem_edge!(graph, i, j)
+        end
+    end
+    
+    fmu.colorType = coloringType
+    fmu.colors = partialColoringD2(graph; coloringType=coloringType)
+    return fmu.colors
+end
+
+function updateGraph(fmu::FMU2; updateType::Symbol) ::SimpleGraph
+    if updateType ∈ [:all, :dependent, :constant, :fixed, :tunable, :discrete]
+        return SimpleGraph(fmu.graph)
+    else
+        if updateType != :independent
+            @warn "Undefined update type"
+        end
+        # return empty simple graph
+        return SimpleGraph(nv(fmu.graph))
+    end 
 end
