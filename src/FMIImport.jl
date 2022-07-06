@@ -46,7 +46,7 @@ export fmi2SetTime, fmi2SetContinuousStates, fmi2EnterEventMode, fmi2NewDiscrete
 export fmi2GetDerivatives!, fmi2GetEventIndicators!, fmi2GetContinuousStates!, fmi2GetNominalsOfContinuousStates!
 
 # FMI2_coloring.jl
-export partialColoringD2, starColoringD2Alg1, starColoringV2Alg2
+export partialColoringD2, starColoringD2Alg1, starColoringV2Alg2, updateColoring!
 
 # FMI2_convert.jl
 export fmi2StringToValueReference, fmi2ValueReferenceToString, fmi2ModelVariablesForValueReference

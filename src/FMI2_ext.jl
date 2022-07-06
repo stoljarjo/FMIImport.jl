@@ -524,10 +524,8 @@ function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real},
     end 
 
     if isdefined(comp.fmu, :dependencies)
-        @info "`fmi2GetJacobian!:` Dependency supported"
         fmi2GetJacobianDependency!(jac, comp, rdx, rx)
     else
-        @warn "`fmi2GetJacobian!:` No dependency supported"
         fmi2GetJacobianNoDependency!(jac, comp, rdx, rx)
     end
     
@@ -541,7 +539,7 @@ function fmi2GetJacobianDependency!(jac::AbstractMatrix{fmi2Real},
      
     ddsupported = fmi2ProvidesDirectionalDerivative(comp.fmu)
     
-    partialColoringD2(comp.fmu; coloringType=fmi2ColoringColumns)
+    partialColoringD2(comp.fmu; coloringType=:columns)
 
     directionalDerivatives = zeros(fmi2Real, length(rdx))
     I, J, _ = findnz(comp.fmu.dependencies)
