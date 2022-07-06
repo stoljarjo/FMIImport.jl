@@ -204,16 +204,6 @@ function updateColoring!(fmu::FMU2; updateType::Symbol, coloringType::Symbol=:co
     end
 
     graph = updateGraph(fmu; updateType=updateType)
-    I, J, V = findnz(fmu.dependencies)
-    num_states = size(fmu.dependencies)[1] 
-    J .+= num_states
-    dependencyType = fmi2StringToDependencyKind(String(updateType))
-
-    for (i, j, v) in zip(I, J, V)
-        if v != dependencyType
-            rem_edge!(graph, i, j)
-        end
-    end
     
     fmu.colorType = coloringType
     fmu.colors = partialColoringD2(graph; coloringType=coloringType)
@@ -221,13 +211,30 @@ function updateColoring!(fmu::FMU2; updateType::Symbol, coloringType::Symbol=:co
 end
 
 function updateGraph(fmu::FMU2; updateType::Symbol) ::SimpleGraph
-    if updateType ∈ [:all, :dependent, :constant, :fixed, :tunable, :discrete]
-        return SimpleGraph(fmu.graph)
+    graph = SimpleGraph(fmu.graph)
+    
+    if updateType == :all
+        return graph
+
+    elseif updateType ∈ [:dependent, :constant, :fixed, :tunable, :discrete]
+
+        I, J, V = findnz(fmu.dependencies)
+        num_states = size(fmu.dependencies)[1] 
+        J .+= num_states
+        dependencyType = fmi2StringToDependencyKind(String(updateType))
+
+        for (i, j, v) in zip(I, J, V)
+            if v != dependencyType
+                rem_edge!(graph, i, j)
+            end
+        end
+        return graph
+
     else
         if updateType != :independent
             @warn "Undefined update type"
         end
         # return empty simple graph
-        return SimpleGraph(nv(fmu.graph))
+        return SimpleGraph(nv(graph))
     end 
 end
