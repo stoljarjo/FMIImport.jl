@@ -12,6 +12,7 @@ myFMU.executionConfig.assertOnWarning = true
 comp = fmi2Instantiate!(myFMU; loggingOn=true)
 @test comp != 0
 
+@info "The following warning is forced and not an issue:"
 open(joinpath(pwd(), "stdout"), "w") do out
     open(joinpath(pwd(), "stderr"), "w") do err
         redirect_stdout(out) do
@@ -36,29 +37,32 @@ comp = fmi2Instantiate!(myFMU; loggingOn=true, logStatusError=false)
 # assertOnError = myFMU.executionConfig.assertOnError
 # myFMU.executionConfig.assertOnError = false
 
+@info "The following warning is forced and not an issue:"
 open(joinpath(pwd(), "stdout"), "w") do out
     open(joinpath(pwd(), "stderr"), "w") do err
         redirect_stdout(out) do
             redirect_stderr(err) do
-                @test fmi2SetupExperiment(comp) == fmi2StatusOK
+                @test fmi2ExitInitializationMode(comp) == fmi2StatusError
             end
         end
     end 
 end
 
-# # reenable errors 
-# myFMU.executionConfig.assertOnError = assertOnError
+output = read(joinpath(pwd(), "stdout"), String)
+@test output == ""
 
-# output = read(joinpath(pwd(), "stdout"), String)
-# @test output == ""
-# output = read(joinpath(pwd(), "stderr"), String)
-# @test output == ""
+if VERSION >= v"1.7.0"
+    output = read(joinpath(pwd(), "stderr"), String)
+    println(output)
+    @test startswith(output, "┌ Warning: fmi2ExitInitializationMode(...): Needs to be called in state `fmi2ComponentStateInitializationMode`.\n")
+end 
 
 ### CASE C: Disable Log ###
 
 comp = fmi2Instantiate!(myFMU; loggingOn=false)
 @test comp != 0
 
+@info "The following warning is forced and not an issue:"
 open(joinpath(pwd(), "stdout"), "w") do out
     open(joinpath(pwd(), "stderr"), "w") do err
         redirect_stdout(out) do
