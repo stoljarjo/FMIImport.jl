@@ -1,5 +1,5 @@
-using LightGraphs
-using LightGraphs: AbstractGraph
+using Graphs
+using Graphs: AbstractGraph
 using SparseArrays: findnz
 
 """
@@ -16,7 +16,7 @@ function createGraph(fmu::FMU2) ::SimpleGraph
     num_states = size(fmu.dependencies)[1] 
     J .+= num_states
 
-    fmu.graph  = SimpleGraph(num_states * 2)
+    fmu.graph = SimpleGraph(num_states * 2)
     for (v1, v2) in zip(I, J)
         add_edge!(fmu.graph, v1, v2)
     end
@@ -213,23 +213,25 @@ end
 function updateGraph(fmu::FMU2; updateType::Symbol) ::SimpleGraph
     graph = SimpleGraph(fmu.graph)
     
-    if updateType == :all
+    if updateType ∈ [:all, :constant, :fixed]
         return graph
 
-    elseif updateType ∈ [:dependent, :constant, :fixed, :tunable, :discrete]
+    elseif updateType ∈ [:dependent, :tunable, :discrete]
 
         I, J, V = findnz(fmu.dependencies)
         num_states = size(fmu.dependencies)[1] 
         J .+= num_states
-        dependencyType = fmi2StringToDependencyKind(String(updateType))
-
-        for (i, j, v) in zip(I, J, V)
-            if v != dependencyType
+        if updateType == :dependent
+            dependencyTypes = [fmi2DependencyKindDependent]
+        else
+            dependencyTypes = [fmi2DependencyKindDependent, fmi2DependencyKindTunable, fmi2DependencyKindDiscrete]
+        end
+            for (i, j, v) in zip(I, J, V)
+            if v ∉ dependencyTypes
                 rem_edge!(graph, i, j)
             end
         end
         return graph
-
     else
         if updateType != :independent
             @warn "Undefined update type"

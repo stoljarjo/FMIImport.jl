@@ -464,9 +464,9 @@ function setJacobianEntries!(jac::AbstractMatrix{fmi2Real},
                             J::AbstractVector{Int},
                             entries::AbstractVector{fmi2Real},
                             inidices::AbstractVector{Int})
-    for i in 1:length(I)
-        if J[i] in inidices 
-            jac[I[i], J[i]] = entries[I[i]]
+    for (i, j) in zip(I, J)
+        if j ∈ inidices 
+            jac[i, j] = entries[i]
         end
     end
     nothing
@@ -476,8 +476,9 @@ function updateJacobianEntires!(jac::AbstractMatrix{fmi2Real},
                                 I::AbstractVector{Int},
                                 J::AbstractVector{Int},
                                 V::AbstractVector{fmi2Real})
-    for (k, (i, j)) in enumerate(zip(I, J))
-        jac[i,j] = V[k] 
+    @assert length(I) == length(J) == length(V)
+    for (i, j, v) in zip(I, J, V)
+        jac[i,j] = v
     end
     nothing
 end
