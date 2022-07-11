@@ -49,7 +49,7 @@ function partialColoringD2(fmu::FMU2; coloringType::Symbol=:columns) ::AbstractV
     if !isdefined(fmu, :graph)
         createGraph(fmu)
     end
-    if !isdefined(fmu, :colors) || fmu.colorType != coloringType
+    if !isdefined(fmu, :colors) || fmu.colorType !== coloringType
         fmu.colorType = coloringType
         fmu.colors = partialColoringD2(fmu.graph; coloringType=coloringType)
     end
@@ -90,7 +90,7 @@ function starColoringD2Alg1(fmu::FMU2; coloringType::Symbol=:columns) ::Abstract
     if !isdefined(fmu, :graph)
         createGraph(fmu)
     end
-    if !isdefined(fmu, :colors) || fmu.colorType != coloringType
+    if !isdefined(fmu, :colors) || fmu.colorType !== coloringType
         fmu.colorType = coloringType
         fmu.colors = starColoringD2Alg1(fmu.graph; coloringType=coloringType)
     end
@@ -148,7 +148,7 @@ function starColoringV2Alg2(fmu::FMU2; coloringType::Symbol=:columns) ::Abstract
     if !isdefined(fmu, :graph)
         createGraph(fmu)
     end
-    if !isdefined(fmu, :colors) || fmu.colorType != coloringType
+    if !isdefined(fmu, :colors) || fmu.colorType !== coloringType
         fmu.colorType = coloringType
         fmu.colors = starColoringV2Alg2(fmu.graph; coloringType=coloringType)
     end
@@ -209,6 +209,17 @@ function updateColoring!(fmu::FMU2; updateType::Symbol, coloringType::Symbol=:co
     fmu.colors = partialColoringD2(graph; coloringType=coloringType)
     return fmu.colors
 end
+function updateColoring!(fmu::FMU2; updateType::Symbol,
+                         rdxIndices::AbstractArray{Int64}, 
+                         rxIndices::AbstractArray{Int64}, 
+                         coloringType::Symbol=:columns) ::AbstractVector
+
+    graph = updateGraph(fmu; updateType=updateType, rdxIndices=rdxIndices, rxIndices=rxIndices)
+    
+    fmu.colorType = coloringType
+    fmu.colors = partialColoringD2(graph; coloringType=coloringType)
+    return fmu.colors
+end
 
 function updateGraph(fmu::FMU2; updateType::Symbol) ::SimpleGraph
     graph = SimpleGraph(fmu.graph)
@@ -221,7 +232,7 @@ function updateGraph(fmu::FMU2; updateType::Symbol) ::SimpleGraph
         I, J, V = findnz(fmu.dependencies)
         num_states = size(fmu.dependencies)[1] 
         J .+= num_states
-        if updateType == :dependent
+        if updateType === :dependent
             dependencyTypes = [fmi2DependencyKindDependent]
         else
             dependencyTypes = [fmi2DependencyKindDependent, fmi2DependencyKindTunable, fmi2DependencyKindDiscrete]
@@ -233,10 +244,36 @@ function updateGraph(fmu::FMU2; updateType::Symbol) ::SimpleGraph
         end
         return graph
     else
-        if updateType != :independent
+        if updateType !== :independent
             @warn "Undefined update type"
         end
         # return empty simple graph
         return SimpleGraph(nv(graph))
     end 
+end
+function updateGraph(fmu::FMU2; updateType::Symbol,
+                     rdxIndices::AbstractArray{Int64}, 
+                     rxIndices::AbstractArray{Int64}) ::SimpleGraph
+    
+    graph = SimpleGraph(length(rdxIndices) + length(rxIndices))
+    
+    I, J, V = findnz(fmu.dependencies)
+    # add offset to J vertex
+    num_states = size(fmu.dependencies)[1] 
+    J .+= num_states
+
+    dependencyTypes = [fmi2DependencyKindDependent]
+    if updateType ∈ [:all, :constant, :fixed, :tunable, :discrete]
+        dependencyTypes.append!([fmi2DependencyKindTunable, fmi2DependencyKindDiscrete])
+    end
+    if updateType ∈ [:all, :constant, :fixed]
+        dependencyTypes.append!([fmi2DependencyKindConstant, fmi2DependencyKindFixed])
+    end
+        
+    for (v1, v2, value) in zip(I, J, V)
+        if v1 ∈ rdxIndices && v2 ∈ rxIndices && value ∈ dependencyTypes 
+            add_edge!(graph, v1, v2)
+        end
+    end
+    return graph
 end
