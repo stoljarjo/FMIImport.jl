@@ -24,6 +24,10 @@ function createGraph(fmu::FMU2) ::SimpleGraph
 end
 
 function getVertices(num_vertices::Int; coloringType::Symbol) ::UnitRange{Int64}
+    if num_vertices <= 1
+        return 1:1
+    end
+
     num_half_vertices = Integer(num_vertices/2)
     if coloringType == :rows
         return 1:num_half_vertices
@@ -209,12 +213,10 @@ function updateColoring!(fmu::FMU2; updateType::Symbol, coloringType::Symbol=:co
     fmu.colors = partialColoringD2(graph; coloringType=coloringType)
     return fmu.colors
 end
-function updateColoring!(fmu::FMU2; updateType::Symbol,
-                         rdxIndices::AbstractArray{Int64}, 
-                         rxIndices::AbstractArray{Int64}, 
-                         coloringType::Symbol=:columns) ::AbstractVector
+function updateColoring!(fmu::FMU2, dependencies::AbstractSparseMatrixCSC; 
+                        updateType::Symbol, coloringType::Symbol=:columns) ::AbstractVector
 
-    graph = updateGraph(fmu; updateType=updateType, rdxIndices=rdxIndices, rxIndices=rxIndices)
+    graph = updateGraph(dependencies; updateType=updateType)
     
     fmu.colorType = coloringType
     fmu.colors = partialColoringD2(graph; coloringType=coloringType)
@@ -251,15 +253,12 @@ function updateGraph(fmu::FMU2; updateType::Symbol) ::SimpleGraph
         return SimpleGraph(nv(graph))
     end 
 end
-function updateGraph(fmu::FMU2; updateType::Symbol,
-                     rdxIndices::AbstractArray{Int64}, 
-                     rxIndices::AbstractArray{Int64}) ::SimpleGraph
+function updateGraph(dependencies::AbstractSparseMatrixCSC; updateType::Symbol) ::SimpleGraph
+    graph = SimpleGraph(length(dependencies))
     
-    graph = SimpleGraph(length(rdxIndices) + length(rxIndices))
-    
-    I, J, V = findnz(fmu.dependencies)
+    I, J, V = findnz(dependencies)
     # add offset to J vertex
-    num_states = size(fmu.dependencies)[1] 
+    num_states = size(dependencies)[1] 
     J .+= num_states
 
     dependencyTypes = [fmi2DependencyKindDependent]
@@ -271,7 +270,7 @@ function updateGraph(fmu::FMU2; updateType::Symbol,
     end
         
     for (v1, v2, value) in zip(I, J, V)
-        if v1 ∈ rdxIndices && v2 ∈ rxIndices && value ∈ dependencyTypes 
+        if value ∈ dependencyTypes 
             add_edge!(graph, v1, v2)
         end
     end
