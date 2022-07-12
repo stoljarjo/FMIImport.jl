@@ -13,24 +13,24 @@ function createGraph(fmu::FMU2) ::SimpleGraph
     I, J, _ = findnz(fmu.dependencies)
 
     # add offset to J vertex
-    num_states = size(fmu.dependencies)[1] 
-    J .+= num_states
+    (numRows, numColumns) = size(fmu.dependencies)
+    J .+= numRows
 
-    fmu.graph = SimpleGraph(num_states * 2)
+    fmu.graph = SimpleGraph(numRows + numColumns)
     for (v1, v2) in zip(I, J)
         add_edge!(fmu.graph, v1, v2)
     end
     fmu.graph
 end
 
-function getVertices(num_vertices::Int; coloringType::Symbol) ::UnitRange{Int64}
-    num_half_vertices = ceil(Int, num_vertices/2)
+function getVertices(dimDependencies::Tuple{Int64, Int64}; coloringType::Symbol) ::UnitRange{Int64}
+    (numRows, numColumns) = dimDependencies
     if coloringType == :rows
-        return 1:num_half_vertices
+        return 1:numRows
     elseif coloringType == :columns
-        return num_half_vertices+1:num_vertices
+        return numRows+1:numRows+numColumns
     elseif coloringType == :all
-        return 1:num_vertices
+        return 1:numRows+numColumns
     else
         @warn "getVertices: Unsupported coloringType= $(String(coloringType))"
     end
@@ -51,16 +51,16 @@ function partialColoringD2(fmu::FMU2; coloringType::Symbol=:columns) ::AbstractV
     end
     if !isdefined(fmu, :colors) || fmu.colorType !== coloringType
         fmu.colorType = coloringType
-        fmu.colors = partialColoringD2(fmu.graph; coloringType=coloringType)
+        fmu.colors = partialColoringD2(fmu.graph, size(fmu.dependencies); coloringType=coloringType)
     end
     fmu.colors
 end
-function partialColoringD2(g::AbstractGraph; coloringType::Symbol) ::AbstractVector
+function partialColoringD2(g::AbstractGraph, dimDependencies::Tuple{Int64, Int64}; coloringType::Symbol) ::AbstractVector
     @info "partialColoringD2: Start partial graph coloring."
     
+    vertices = getVertices(dimDependencies; coloringType=coloringType)
+    
     num_all_vertices = nv(g)
-    vertices = getVertices(num_all_vertices; coloringType=coloringType)
-
     forbidden_colors = zeros(Int, num_all_vertices)
     colorvec = zeros(Int, num_all_vertices)
     
@@ -92,16 +92,16 @@ function starColoringD2Alg1(fmu::FMU2; coloringType::Symbol=:columns) ::Abstract
     end
     if !isdefined(fmu, :colors) || fmu.colorType !== coloringType
         fmu.colorType = coloringType
-        fmu.colors = starColoringD2Alg1(fmu.graph; coloringType=coloringType)
+        fmu.colors = starColoringD2Alg1(fmu.graph, size(fmu.dependencies); coloringType=coloringType)
     end
     fmu.colors
 end
-function starColoringD2Alg1(g::AbstractGraph; coloringType::Symbol) ::AbstractVector
+function starColoringD2Alg1(g::AbstractGraph, dimDependencies::Tuple{Int64, Int64}; coloringType::Symbol) ::AbstractVector
     @info "starColoringD2Alg1: Start star graph coloring (algorithm 1)."
 
-    num_all_vertices = nv(g)
-    vertices = getVertices(num_all_vertices; coloringType=coloringType)
+    vertices = getVertices(dimDependencies; coloringType=coloringType)
 
+    num_all_vertices = nv(g)
     colorvec = zeros(Int, num_all_vertices)
     forbidden_colors = zeros(Int, num_all_vertices)
 
@@ -150,16 +150,16 @@ function starColoringV2Alg2(fmu::FMU2; coloringType::Symbol=:columns) ::Abstract
     end
     if !isdefined(fmu, :colors) || fmu.colorType !== coloringType
         fmu.colorType = coloringType
-        fmu.colors = starColoringV2Alg2(fmu.graph; coloringType=coloringType)
+        fmu.colors = starColoringV2Alg2(fmu.graph, size(fmu.dependencies); coloringType=coloringType)
     end
     fmu.colors
 end
-function starColoringV2Alg2(g::AbstractGraph; coloringType::Symbol) ::AbstractVector
+function starColoringV2Alg2(g::AbstractGraph, dimDependencies::Tuple{Int64, Int64}; coloringType::Symbol) ::AbstractVector
     @info "starColoringV2Alg2: Start star graph coloring (algorithm 2)."
 
-    num_all_vertices = nv(g)
-    vertices = getVertices(num_all_vertices; coloringType=coloringType)
+    vertices = getVertices(dimDependencies; coloringType=coloringType)
 
+    num_all_vertices = nv(g)
     colorvec = zeros(Int, num_all_vertices)
     forbidden_colors = zeros(Int, num_all_vertices)
 
