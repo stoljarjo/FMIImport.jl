@@ -24,11 +24,7 @@ function createGraph(fmu::FMU2) ::SimpleGraph
 end
 
 function getVertices(num_vertices::Int; coloringType::Symbol) ::UnitRange{Int64}
-    if num_vertices <= 1
-        return 1:1
-    end
-
-    num_half_vertices = Integer(num_vertices/2)
+    num_half_vertices = ceil(Int, num_vertices/2)
     if coloringType == :rows
         return 1:num_half_vertices
     elseif coloringType == :columns
