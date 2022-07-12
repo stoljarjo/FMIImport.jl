@@ -213,7 +213,7 @@ function updateColoring!(fmu::FMU2; updateType::Symbol, coloringType::Symbol=:co
     fmu.colors = partialColoringD2(graph; coloringType=coloringType)
     return fmu.colors
 end
-function updateColoring!(fmu::FMU2, dependencies::AbstractSparseMatrixCSC; 
+function updateColoring!(fmu::FMU2, dependencies::AbstractMatrix{fmi2DependencyKind}; 
                         updateType::Symbol, coloringType::Symbol=:columns) ::AbstractVector
 
     graph = updateGraph(dependencies; updateType=updateType)
@@ -253,7 +253,7 @@ function updateGraph(fmu::FMU2; updateType::Symbol) ::SimpleGraph
         return SimpleGraph(nv(graph))
     end 
 end
-function updateGraph(dependencies::AbstractSparseMatrixCSC; updateType::Symbol) ::SimpleGraph
+function updateGraph(dependencies::AbstractMatrix{fmi2DependencyKind}; updateType::Symbol) ::SimpleGraph
     graph = SimpleGraph(length(dependencies))
     
     I, J, V = findnz(dependencies)
