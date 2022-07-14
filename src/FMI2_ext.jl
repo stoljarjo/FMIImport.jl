@@ -8,7 +8,7 @@
 
 using Libdl
 using ZipFile
-using SparseArrays: spzeros, findnz
+using SparseArrays: spzeros, findnz, nnz, AbstractSparseMatrixCSC
 import Downloads
 
 """
@@ -463,9 +463,9 @@ function setJacobianEntries!(jac::AbstractMatrix{fmi2Real},
                             I::AbstractVector{Int},
                             J::AbstractVector{Int},
                             entries::AbstractVector{fmi2Real},
-                            inidices::AbstractVector{Int})
+                            indices::AbstractVector{Int})
     for (i, j) in zip(I, J)
-        if j ∈ inidices 
+        if j ∈ indices 
             jac[i, j] = entries[i]
         end
     end
@@ -481,6 +481,36 @@ function updateJacobianEntires!(jac::AbstractMatrix{fmi2Real},
         jac[i,j] = v
     end
     nothing
+end
+
+function eventOccurred!(jac::AbstractSparseMatrixCSC{fmi2Real, Int64}, 
+                        dependencies::AbstractSparseMatrixCSC{fmi2DependencyKind, Int64};
+                        eventType::Symbol)
+
+    if size(jac) != size(dependencies) && length(jac.nzval) == length(depMat.nzval)
+        @warn "eventOccurred!: Size of the jacobian $(size(jac)) and the corresponding dependency matrix $(size(dependencies)) are unequal!"
+        return nothing
+    end
+    
+    dependencyTypes = selectDependencyTypes(eventType)
+    # exclude fmi2DependencyKindDependent because dependent state always have to be resampled
+    if eventType !== :dependent
+        deleteat!(dependencyTypes, 1)
+    end
+    jac.nzval[depMat.nzval .∈ Ref(dependencyTypes)] .= NaN
+    return nothing
+end
+
+function selectUpdateType(jac::AbstractSparseMatrixCSC{fmi2Real, Int64}, dependencies::AbstractSparseMatrixCSC{fmi2DependencyKind, Int64}) ::Symbol
+    # check if the values for update type 1 or 2 are missing
+    if any(isnan.(jac.nzval[dependencies.nzval .∈ Ref([fmi2DependencyKindDependent, fmi2DependencyKindFixed])]))
+        updateType = :constant
+    elseif any(isnan.(jac[dependencies .∈ Ref([fmi2DependencyKindTunable, fmi2DependencyKindDiscrete])]))
+        updateType = :tunable
+    else
+        updateType = :dependent
+    end
+    return updateType
 end
 
 """
@@ -504,6 +534,25 @@ function fmi2GetJacobian(comp::FMU2Component,
     fmi2GetJacobian!(mat, comp, rdx, rx; steps=steps)
     return mat
 end
+function fmi2GetJacobian(comp::FMU2Component, 
+                         rdx::fmi2ValueReference, 
+                         rx::fmi2ValueReference; 
+                         steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
+    fmi2GetJacobian(comp, [rdx], [rx]; steps=steps)
+end
+function fmi2GetJacobian(comp::FMU2Component, 
+                         rdx::AbstractArray{fmi2ValueReference}, 
+                         rx::fmi2ValueReference; 
+                         steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
+    fmi2GetJacobian(comp, rdx, [rx]; steps=steps)
+end
+function fmi2GetJacobian(comp::FMU2Component, 
+                         rdx::fmi2ValueReference, 
+                         rx::AbstractArray{fmi2ValueReference}; 
+                         steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
+    fmi2GetJacobian(comp, [rdx], rx; steps=steps)
+end
+
 
 """
 Fills the jacobian over the FMU `fmu` for FMU value references `rdx` and `rx`, so that the function returns the jacobian ∂rdx / ∂rx.
@@ -534,22 +583,63 @@ function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real},
     
     return nothing
 end
+function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real}, 
+                          comp::FMU2Component, 
+                          rdx::fmi2ValueReference, 
+                          rx::fmi2ValueReference; 
+                          steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
+    fmi2GetJacobian!(jac, comp, [rdx], [rx]; steps=steps)
+end
+function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real}, 
+                          comp::FMU2Component, 
+                          rdx::AbstractArray{fmi2ValueReference}, 
+                          rx::fmi2ValueReference; 
+                          steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
+    fmi2GetJacobian!(jac, comp, rdx, [rx]; steps=steps)
+end
+function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real}, 
+                          comp::FMU2Component, 
+                          rdx::fmi2ValueReference, 
+                          rx::AbstractArray{fmi2ValueReference}; 
+                          steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
+    fmi2GetJacobian!(jac, comp, [rdx], rx; steps=steps)
+end
 
-function fmi2GetJacobianDependency!(jac::AbstractMatrix{fmi2Real}, 
+
+function fmi2GetJacobianDependency!(jac::AbstractSparseMatrixCSC{fmi2Real, Int64}, 
                                     comp::FMU2Component, 
-                                    rdx::Array{fmi2ValueReference}, 
-                                    rx::Array{fmi2ValueReference})
+                                    rdx::AbstractArray{fmi2ValueReference},
+                                    rx::AbstractArray{fmi2ValueReference})
      
     ddsupported = fmi2ProvidesDirectionalDerivative(comp.fmu)
     
-    partialColoringD2(comp.fmu; coloringType=:columns)
+    # 1: check if rdx and rx are entries for the whole dependency matrix
+    dependencies = comp.fmu.dependencies
+    isSubMatrix = size(dependencies) != (length(rdx), length(rx))
+    if isSubMatrix
+        # 2: get indices for sub arrays
+        rdxIndices::Vector{Int64} = [Int64(comp.fmu.modelDescription.derivativeReferenceIndicies[key]) for key in rdx]
+        rxIndices::Vector{Int64} = [Int64(comp.fmu.modelDescription.stateReferenceIndicies[key]) for key in rx]
+        # select subarray for the dependencies
+        dependencies = comp.fmu.dependencies[rdxIndices, rxIndices]
+    end
+
+    # 3: select update type
+    updateType = selectUpdateType(jac, dependencies)
+
+    # 4: update the coloring for the new graph
+    if isSubMatrix
+        updateColoring!(comp.fmu, dependenciesSection; updateType=updateType, coloringType=:columns)
+    else
+        updateColoring!(comp.fmu; updateType=updateType, coloringType=:columns)
+    end
 
     directionalDerivatives = zeros(fmi2Real, length(rdx))
-    I, J, _ = findnz(comp.fmu.dependencies)
-
+    I, J, _ = findnz(dependencies)
+    # 5: get derivatives for same colors at onces
     for color in unique(comp.fmu.colors)
         indices = findall(==(true), comp.fmu.colors .== color)
-        
+
         if ddsupported
             fill!(directionalDerivatives, zero(fmi2Real))
             fmi2GetDirectionalDerivative!(comp, rdx, rx[indices], directionalDerivatives)
@@ -560,7 +650,6 @@ function fmi2GetJacobianDependency!(jac::AbstractMatrix{fmi2Real},
     end
     nothing
 end
-
 function fmi2GetJacobianNoDependency!(jac::AbstractMatrix{fmi2Real}, 
                                     comp::FMU2Component, 
                                     rdx::Array{fmi2ValueReference}, 

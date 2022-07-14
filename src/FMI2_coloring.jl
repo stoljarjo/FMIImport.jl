@@ -8,19 +8,74 @@ Create a SimpleGraph out of the dependency matrix.
 function createGraph(fmu::FMU2) ::SimpleGraph
     if !isdefined(fmu, :dependencies)
         @warn "Dependencies are not defined!"
-        return
+        return SimpleGraph()
     end
     I, J, _ = findnz(fmu.dependencies)
-
-    # add offset to J vertex
-    (numRows, numColumns) = size(fmu.dependencies)
-    J .+= numRows
-
-    fmu.graph = SimpleGraph(numRows + numColumns)
+    addOffsetToVertex!(J, fmu.dependencies)
+   
+    fmu.graph = SimpleGraph(sum(size(fmu.dependencies)))
     for (v1, v2) in zip(I, J)
         add_edge!(fmu.graph, v1, v2)
     end
     fmu.graph
+end
+
+function updateGraph(fmu::FMU2; updateType::Symbol) ::SimpleGraph
+    if updateType === :independent
+        return SimpleGraph(nv(fmu.graph))
+    end
+    
+    graph = SimpleGraph(fmu.graph)
+    if updateType ∉ [:all, :constant, :fixed]
+        I, J, V = findnz(fmu.dependencies)
+        addOffsetToVertex!(J, fmu.dependencies)
+        dependencyTypes = selectDependencyTypes(updateType)
+        for (v1, v2, value) in zip(I, J, V)
+            if value ∉ dependencyTypes
+                rem_edge!(graph, v1, v2)
+            end
+        end
+    end
+    return graph
+end
+function updateGraph(dependencies::AbstractMatrix{fmi2DependencyKind}; updateType::Symbol) ::SimpleGraph
+    I, J, V = findnz(dependencies)
+    addOffsetToVertex!(J, dependencies)
+    dependencyTypes = selectDependencyTypes(updateType)
+    
+    graph = SimpleGraph(sum(size(dependencies)))
+    for (v1, v2, value) in zip(I, J, V)
+        if value ∈ dependencyTypes 
+            add_edge!(graph, v1, v2)
+        end
+    end
+    return graph
+end
+
+function selectDependencyTypes(updateType::Symbol) ::Vector{fmi2DependencyKind}
+    validUpdateTypes = [:all, :constant, :fixed, :tunable, :discrete, :dependent, :independent]
+    if updateType ∉ validUpdateTypes
+        @warn "Undefined update type"
+        return []
+    end
+
+    dependencyTypes = [fmi2DependencyKindDependent]
+    # from :all to :discrete
+    if updateType ∈ validUpdateTypes[1:5]
+        append!(dependencyTypes, [fmi2DependencyKindTunable, fmi2DependencyKindDiscrete])
+    end
+    # from :all to :fixed
+    if updateType ∈ validUpdateTypes[1:3]
+        append!(dependencyTypes, [fmi2DependencyKindConstant, fmi2DependencyKindFixed])
+    end
+    return dependencyTypes
+end
+
+function addOffsetToVertex!(vertexIndices::AbstractVector{Int64}, dependencies::AbstractMatrix{fmi2DependencyKind})
+    # add offset to J vertex
+    (numRows, _)  = size(dependencies)
+    vertexIndices .+= numRows
+    return nothing
 end
 
 function getVertices(dimDependencies::Tuple{Int64, Int64}; coloringType::Symbol) ::UnitRange{Int64}
@@ -49,7 +104,10 @@ function partialColoringD2(fmu::FMU2; coloringType::Symbol=:columns) ::AbstractV
     if !isdefined(fmu, :graph)
         createGraph(fmu)
     end
-    if !isdefined(fmu, :colors) || fmu.colorType !== coloringType
+
+    numColors = length(getVertices(size(fmu.dependencies); coloringType=coloringType))
+
+    if !isdefined(fmu, :colors) || fmu.colors != numColors || fmu.colorType !== coloringType 
         fmu.colorType = coloringType
         fmu.colors = partialColoringD2(fmu.graph, size(fmu.dependencies); coloringType=coloringType)
     end
@@ -90,7 +148,10 @@ function starColoringD2Alg1(fmu::FMU2; coloringType::Symbol=:columns) ::Abstract
     if !isdefined(fmu, :graph)
         createGraph(fmu)
     end
-    if !isdefined(fmu, :colors) || fmu.colorType !== coloringType
+    
+    numColors = length(getVertices(size(fmu.dependencies); coloringType=coloringType))
+
+    if !isdefined(fmu, :colors) || fmu.colors != numColors || fmu.colorType !== coloringType 
         fmu.colorType = coloringType
         fmu.colors = starColoringD2Alg1(fmu.graph, size(fmu.dependencies); coloringType=coloringType)
     end
@@ -148,7 +209,10 @@ function starColoringV2Alg2(fmu::FMU2; coloringType::Symbol=:columns) ::Abstract
     if !isdefined(fmu, :graph)
         createGraph(fmu)
     end
-    if !isdefined(fmu, :colors) || fmu.colorType !== coloringType
+
+    numColors = length(getVertices(size(fmu.dependencies); coloringType=coloringType))
+
+    if !isdefined(fmu, :colors) || fmu.colors != numColors || fmu.colorType !== coloringType 
         fmu.colorType = coloringType
         fmu.colors = starColoringV2Alg2(fmu.graph, size(fmu.dependencies); coloringType=coloringType)
     end
@@ -206,7 +270,7 @@ function updateColoring!(fmu::FMU2; updateType::Symbol, coloringType::Symbol=:co
     graph = updateGraph(fmu; updateType=updateType)
     
     fmu.colorType = coloringType
-    fmu.colors = partialColoringD2(graph; coloringType=coloringType)
+    fmu.colors = partialColoringD2(graph, size(fmu.dependencies); coloringType=coloringType)
     return fmu.colors
 end
 function updateColoring!(fmu::FMU2, dependencies::AbstractMatrix{fmi2DependencyKind}; 
@@ -215,60 +279,6 @@ function updateColoring!(fmu::FMU2, dependencies::AbstractMatrix{fmi2DependencyK
     graph = updateGraph(dependencies; updateType=updateType)
     
     fmu.colorType = coloringType
-    fmu.colors = partialColoringD2(graph; coloringType=coloringType)
+    fmu.colors = partialColoringD2(graph, size(dependencies); coloringType=coloringType)
     return fmu.colors
-end
-
-function updateGraph(fmu::FMU2; updateType::Symbol) ::SimpleGraph
-    graph = SimpleGraph(fmu.graph)
-    
-    if updateType ∈ [:all, :constant, :fixed]
-        return graph
-
-    elseif updateType ∈ [:dependent, :tunable, :discrete]
-
-        I, J, V = findnz(fmu.dependencies)
-        num_states = size(fmu.dependencies)[1] 
-        J .+= num_states
-        if updateType === :dependent
-            dependencyTypes = [fmi2DependencyKindDependent]
-        else
-            dependencyTypes = [fmi2DependencyKindDependent, fmi2DependencyKindTunable, fmi2DependencyKindDiscrete]
-        end
-            for (i, j, v) in zip(I, J, V)
-            if v ∉ dependencyTypes
-                rem_edge!(graph, i, j)
-            end
-        end
-        return graph
-    else
-        if updateType !== :independent
-            @warn "Undefined update type"
-        end
-        # return empty simple graph
-        return SimpleGraph(nv(graph))
-    end 
-end
-function updateGraph(dependencies::AbstractMatrix{fmi2DependencyKind}; updateType::Symbol) ::SimpleGraph
-    graph = SimpleGraph(length(dependencies))
-    
-    I, J, V = findnz(dependencies)
-    # add offset to J vertex
-    num_states = size(dependencies)[1] 
-    J .+= num_states
-
-    dependencyTypes = [fmi2DependencyKindDependent]
-    if updateType ∈ [:all, :constant, :fixed, :tunable, :discrete]
-        dependencyTypes.append!([fmi2DependencyKindTunable, fmi2DependencyKindDiscrete])
-    end
-    if updateType ∈ [:all, :constant, :fixed]
-        dependencyTypes.append!([fmi2DependencyKindConstant, fmi2DependencyKindFixed])
-    end
-        
-    for (v1, v2, value) in zip(I, J, V)
-        if value ∈ dependencyTypes 
-            add_edge!(graph, v1, v2)
-        end
-    end
-    return graph
 end
