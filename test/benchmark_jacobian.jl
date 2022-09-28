@@ -91,7 +91,9 @@ myFMUs = Dict(
     "SpringDamperPendulum1D"       => ("SpringDamperPendulum1D", "Dymola", "2022x"),
     "SpringTimeFrictionPendulum1D" => ("SpringTimeFrictionPendulum1D", "Dymola", "2022x"),
     "GridCabinAcceleration_12"     => "./../hiwi_stoljarjohannes/FMUs/GridCabinAcceleration_Examples_Case3d_0FixedDistribution_0CoolDown_ME_12.fmu",
-    "GridCabinAcceleration_grid"   => "./../hiwi_stoljarjohannes/FMUs/GridCabinAcceleration_Examples_Case3d_0FixedDistribution_0CoolDown_ME_grid.fmu"
+    "GridCabinAcceleration_grid"   => "./../hiwi_stoljarjohannes/FMUs/GridCabinAcceleration_Examples_Case3d_0FixedDistribution_0CoolDown_ME_grid.fmu",
+    "Longitudinaldynamic"           => "./../hiwi_stoljarjohannes/Modelica/Longitudinaldynamic_LongitudinaldynamicmodelContinuous.fmu"
+
 )
 
 jac1 = nothing; jac2 = nothing; jac3 = nothing;
@@ -105,6 +107,17 @@ for (key, value) in myFMUs
 
     comp = fmi2Instantiate!(myFMU; loggingOn=true)
     fmi2SetupExperiment(comp)
+
+    if key == "Longitudinaldynamic"
+        relativePath = "../hiwi_stoljarjohannes/Modelica/Data"
+        pathToDCTable = joinpath(dirname(@__FILE__), relativePath, "DrivingCycle/WLTP_class_1.mat")
+        pathToEDTable = joinpath(dirname(@__FILE__), relativePath, "ElectricDriveData.mat")
+        pathToPETable = joinpath(dirname(@__FILE__), relativePath, "PowerElectronicsData.mat")
+        fmiSetString(myFMU, "dcFileName", pathToDCTable)
+        fmiSetString(myFMU, "edFileName", pathToEDTable)
+        fmiSetString(myFMU, "peFileName", pathToPETable)
+    end
+
     fmi2EnterInitializationMode(comp)
     fmi2ExitInitializationMode(comp)
     
