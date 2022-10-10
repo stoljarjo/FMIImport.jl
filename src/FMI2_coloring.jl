@@ -71,7 +71,7 @@ function selectDependencyTypes(updateType::Symbol) ::Vector{fmi2DependencyKind}
     return dependencyTypes
 end
 
-function addOffsetToVertex!(vertexIndices::AbstractVector{Int64}, dependencies::AbstractMatrix{fmi2DependencyKind})
+function addOffsetToVertex!(vertexIndices::AbstractVector{Int64}, dependencies::AbstractMatrix{Union{fmi2DependencyKind, Nothing}})
     # add offset to J vertex
     (numRows, _)  = size(dependencies)
     vertexIndices .+= numRows
