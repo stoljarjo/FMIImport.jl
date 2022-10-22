@@ -644,7 +644,7 @@ end
 
 function selectUpdateType(jac::AbstractSparseMatrixCSC{fmi2Real, Int64}, dependencies::AbstractSparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64}) ::Symbol
     if length(jac.nzval) != length(dependencies.nzval)
-        updateType = :constant
+        updateType = :all
     # check if the values for update type 1 or 2 are missing    
     elseif any(isnan.(jac.nzval[dependencies.nzval .∈ Ref([fmi2DependencyKindConstant, fmi2DependencyKindFixed])]))
         updateType = :constant
