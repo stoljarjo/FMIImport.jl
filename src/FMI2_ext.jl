@@ -624,9 +624,13 @@ function updateJacobianEntires!(jac::AbstractMatrix{fmi2Real},
     nothing
 end
 
-function eventOccurred!(jac::AbstractSparseMatrixCSC{fmi2Real, Int64}, 
+function eventOccurred!(jac::Union{AbstractSparseMatrixCSC{fmi2Real, Int64}, Nothing}, 
                         dependencies::AbstractSparseMatrixCSC{fmi2DependencyKind, Int64};
                         eventType::Symbol)
+
+    if isnothing(jac)
+        return nothing
+    end
 
     if size(jac) != size(dependencies) && length(jac.nzval) == length(depMat.nzval)
         @warn "eventOccurred!: Size of the jacobian $(size(jac)) and the corresponding dependency matrix $(size(dependencies)) are unequal!"
