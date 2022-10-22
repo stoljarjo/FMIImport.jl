@@ -2,10 +2,7 @@
 using FMIZoo
 using FMICore
 using FMIImport
-using FMI: fmi2GetDependenciesA
-# using LightGraphs
-# using LightGraphs: AbstractGraph
-# using SparseArrays: spzeros, findnz
+using FMI: fmi2GetDependencies, fmi2GetDependenciesA
 using BenchmarkTools
 
 function fmi2GetJacobianOld(comp::FMU2Component, 
@@ -91,8 +88,8 @@ myFMUs = Dict(
     "SpringDamperPendulum1D"       => ("SpringDamperPendulum1D", "Dymola", "2022x"),
     "SpringTimeFrictionPendulum1D" => ("SpringTimeFrictionPendulum1D", "Dymola", "2022x"),
     "GridCabinAcceleration_12"     => "./../hiwi_stoljarjohannes/FMUs/GridCabinAcceleration_Examples_Case3d_0FixedDistribution_0CoolDown_ME_12.fmu",
-    "GridCabinAcceleration_grid"   => "./../hiwi_stoljarjohannes/FMUs/GridCabinAcceleration_Examples_Case3d_0FixedDistribution_0CoolDown_ME_grid.fmu",
-    "Longitudinaldynamic"           => "./../hiwi_stoljarjohannes/Modelica/Longitudinaldynamic_LongitudinaldynamicmodelContinuous.fmu"
+    # "GridCabinAcceleration_grid"   => "./../hiwi_stoljarjohannes/FMUs/GridCabinAcceleration_Examples_Case3d_0FixedDistribution_0CoolDown_ME_grid.fmu",
+    # "Longitudinaldynamic"           => "./../hiwi_stoljarjohannes/Modelica/Longitudinaldynamic_LongitudinaldynamicmodelContinuous.fmu"
 
 )
 
@@ -100,9 +97,11 @@ jac1 = nothing; jac2 = nothing; jac3 = nothing;
 time1 = nothing; time2 = nothing; time3 = nothing;
 io = IOContext(stdout, :histmin=>0.5, :histmax=>8, :logbins=>true)
 
-for (key, value) in myFMUs
+# for (key, value) in myFMUs
+    key = "BouncingBall1D"
+    value = myFMUs[key]
     println(io, "#FMU: $key")
-    myFMU = typeof(value) == typeof(value) == Tuple{String, String, String} ? fmi2Load(value...) : fmi2Load(value)
+    myFMU = typeof(value) == Tuple{String, String, String} ? fmi2Load(value...) : fmi2Load(value)
     myFMU.executionConfig.assertOnWarning = true
 
     comp = fmi2Instantiate!(myFMU; loggingOn=true)
@@ -121,21 +120,22 @@ for (key, value) in myFMUs
     fmi2EnterInitializationMode(comp)
     fmi2ExitInitializationMode(comp)
     
-    time1 = @benchmark (
-        fmi2GetJacobianOld(comp, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
-    )
-    jac1 = fmi2GetJacobianOld(comp, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
+    # time1 = @benchmark (
+    #     fmi2GetJacobianOld(comp, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
+    # )
+    # jac1 = fmi2GetJacobianOld(comp, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
         
-    time2 = @benchmark (
-        fmi2GetJacobianFull(comp, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
-    )
-    jac2 = fmi2GetJacobianFull(comp, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
+    # time2 = @benchmark (
+    #     fmi2GetJacobianFull(comp, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
+    # )
+    # jac2 = fmi2GetJacobianFull(comp, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
 
 
-    time3 = @benchmark (
-        fmi2GetDependenciesA(comp.fmu);
-        fmi2GetJacobian(comp, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
-    )
+    # time3 = @benchmark (
+    #     fmi2GetDependenciesA(comp.fmu);
+    #     fmi2GetJacobian(comp, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
+    # )
+    dependencies2 = fmi2GetDependenciesA(comp.fmu)
     jac3 = fmi2GetJacobian(comp, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
 
     maxColors = maximum(comp.fmu.colors)
@@ -158,6 +158,6 @@ for (key, value) in myFMUs
     \n________________________________________________________________")
 
     fmi2Unload(myFMU)
-end
+# end
 
 println("END")
