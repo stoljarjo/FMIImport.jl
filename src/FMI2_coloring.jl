@@ -114,7 +114,7 @@ function partialColoringD2(fmu::FMU2; coloringType::Symbol=:columns) ::AbstractV
     fmu.colors
 end
 function partialColoringD2(g::AbstractGraph, dimDependencies::Tuple{Int64, Int64}; coloringType::Symbol) ::AbstractVector
-    @info "partialColoringD2: Start partial graph coloring."
+    @info "partialColoringD2: Start partial graph coloring (type: $coloringType)."
     
     vertices = getVertices(dimDependencies; coloringType=coloringType)
     
@@ -158,7 +158,7 @@ function starColoringD2Alg1(fmu::FMU2; coloringType::Symbol=:columns) ::Abstract
     fmu.colors
 end
 function starColoringD2Alg1(g::AbstractGraph, dimDependencies::Tuple{Int64, Int64}; coloringType::Symbol) ::AbstractVector
-    @info "starColoringD2Alg1: Start star graph coloring (algorithm 1)."
+    @info "starColoringD2Alg1: Start star graph coloring (algorithm 1) (type: $coloringType)."
 
     vertices = getVertices(dimDependencies; coloringType=coloringType)
 
@@ -219,7 +219,7 @@ function starColoringV2Alg2(fmu::FMU2; coloringType::Symbol=:columns) ::Abstract
     fmu.colors
 end
 function starColoringV2Alg2(g::AbstractGraph, dimDependencies::Tuple{Int64, Int64}; coloringType::Symbol) ::AbstractVector
-    @info "starColoringV2Alg2: Start star graph coloring (algorithm 2)."
+    @info "starColoringV2Alg2: Start star graph coloring (algorithm 2) (type: $coloringType)."
 
     vertices = getVertices(dimDependencies; coloringType=coloringType)
 
