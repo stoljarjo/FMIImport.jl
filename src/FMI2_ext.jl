@@ -610,6 +610,15 @@ function fmi2SampleDirectionalDerivative!(c::FMU2Component,
     nothing
 end
 
+function init_jacobian!(jac::AbstractMatrix{fmi2Real},
+                        dependencies::AbstractSparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64})
+    I, J, _ = findnz(dependencies)
+    for (i, j) in zip(I, J)
+        # set all entires to NaN
+        jac[i, j] = NaN
+    end
+end
+
 function setJacobianEntries!(jac::AbstractMatrix{fmi2Real},
                             I::AbstractVector{Int},
                             J::AbstractVector{Int},
@@ -637,7 +646,7 @@ end
 function eventOccurred!(jac::Union{AbstractMatrix{fmi2Real}, Nothing}, 
                         dependencies::AbstractSparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64};
                         eventType::Symbol)
-    if isnothing(jac)
+    if isnothing(jac) || size(jac) == (0, 0)
         return nothing
     end
     if size(jac) != size(dependencies)
@@ -836,7 +845,7 @@ function fmi2GetJacobianDependency!(jac::AbstractSparseMatrixCSC{fmi2Real, Int64
                                     comp::FMU2Component, 
                                     rdx::AbstractArray{fmi2ValueReference},
                                     rx::AbstractArray{fmi2ValueReference})
-     
+    @info "Calling: fmi2GetJacobianDependency!"
     ddsupported = fmi2ProvidesDirectionalDerivative(comp.fmu)
     
     # 1: check if rdx and rx are entries for the whole dependency matrix

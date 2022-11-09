@@ -267,9 +267,15 @@ function updateColoring!(fmu::FMU2; updateType::Symbol, coloringType::Symbol=:co
         createGraph(fmu)
     end
 
+    numColors = length(getVertices(size(fmu.dependencies); coloringType=coloringType))
+    if isdefined(fmu, :colors) && length(fmu.colors) == numColors && fmu.colorType == coloringType && fmu.updateType == updateType 
+        return fmu.colors
+    end
+
     graph = updateGraph(fmu; updateType=updateType)
     
     fmu.colorType = coloringType
+    fmu.updateType = updateType
     fmu.colors = partialColoringD2(graph, size(fmu.dependencies); coloringType=coloringType)
     return fmu.colors
 end
