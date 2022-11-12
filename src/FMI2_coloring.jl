@@ -2,6 +2,18 @@ using Graphs
 using Graphs: AbstractGraph
 using SparseArrays: findnz
 
+
+const global validUpdateTypes = IdDict(
+    :all => [fmi2DependencyKindDependent, fmi2DependencyKindTunable, fmi2DependencyKindDiscrete, fmi2DependencyKindConstant, fmi2DependencyKindFixed],
+    :constant => [fmi2DependencyKindDependent, fmi2DependencyKindTunable, fmi2DependencyKindDiscrete, fmi2DependencyKindConstant, fmi2DependencyKindFixed],
+    :fixed => [fmi2DependencyKindDependent, fmi2DependencyKindTunable, fmi2DependencyKindDiscrete, fmi2DependencyKindConstant, fmi2DependencyKindFixed],
+    :tunable => [fmi2DependencyKindDependent, fmi2DependencyKindTunable, fmi2DependencyKindDiscrete],
+    :discrete => [fmi2DependencyKindDependent, fmi2DependencyKindTunable, fmi2DependencyKindDiscrete],
+    :dependent => [fmi2DependencyKindDependent],
+    :independent => []
+)
+
+
 """
 Create a SimpleGraph out of the dependency matrix.
 """
@@ -53,22 +65,12 @@ function updateGraph(dependencies::AbstractMatrix{fmi2DependencyKind}; updateTyp
 end
 
 function selectDependencyTypes(updateType::Symbol) ::Vector{fmi2DependencyKind}
-    validUpdateTypes = [:all, :constant, :fixed, :tunable, :discrete, :dependent, :independent]
-    if updateType ∉ validUpdateTypes
+    if !haskey(validUpdateTypes, updateType)
         @warn "Undefined update type"
         return []
     end
 
-    dependencyTypes = [fmi2DependencyKindDependent]
-    # from :all to :discrete
-    if updateType ∈ validUpdateTypes[1:5]
-        append!(dependencyTypes, [fmi2DependencyKindTunable, fmi2DependencyKindDiscrete])
-    end
-    # from :all to :fixed
-    if updateType ∈ validUpdateTypes[1:3]
-        append!(dependencyTypes, [fmi2DependencyKindConstant, fmi2DependencyKindFixed])
-    end
-    return dependencyTypes
+    return validUpdateTypes[updateType]
 end
 
 function addOffsetToVertex!(vertexIndices::AbstractVector{Int64}, dependencies::AbstractMatrix{Union{fmi2DependencyKind, Nothing}})
