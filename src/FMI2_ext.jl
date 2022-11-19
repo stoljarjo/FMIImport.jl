@@ -891,7 +891,7 @@ function fmi2GetJacobianNoDependency!(jac::AbstractMatrix{fmi2Real},
                                     comp::FMU2Component, 
                                     rdx::Array{fmi2ValueReference}, 
                                     rx::Array{fmi2ValueReference})
-
+    @debug "Calling: fmi2GetJacobianNoDependency!"
     ddsupported = fmi2ProvidesDirectionalDerivative(comp.fmu)
 
     for i in 1:length(rx)
