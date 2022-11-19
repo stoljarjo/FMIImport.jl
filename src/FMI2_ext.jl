@@ -845,7 +845,7 @@ function fmi2GetJacobianDependency!(jac::AbstractSparseMatrixCSC{fmi2Real, Int64
                                     comp::FMU2Component, 
                                     rdx::AbstractArray{fmi2ValueReference},
                                     rx::AbstractArray{fmi2ValueReference})
-    @info "Calling: fmi2GetJacobianDependency!"
+    @debug "Calling: fmi2GetJacobianDependency!"
     ddsupported = fmi2ProvidesDirectionalDerivative(comp.fmu)
     
     # 1: check if rdx and rx are entries for the whole dependency matrix
@@ -856,11 +856,12 @@ function fmi2GetJacobianDependency!(jac::AbstractSparseMatrixCSC{fmi2Real, Int64
         rdxIndices::Vector{Int64} = [Int64(comp.fmu.modelDescription.derivativeReferenceIndicies[key]) for key in rdx]
         rxIndices::Vector{Int64} = [Int64(comp.fmu.modelDescription.stateReferenceIndicies[key]) for key in rx]
         # select subarray for the dependencies
-        dependencies = comp.fmu.dependencies[rdxIndices, rxIndices]
+        dependenciesSection = comp.fmu.dependencies[rdxIndices, rxIndices]
     end
 
     # 3: select update type
     updateType = selectUpdateType(jac, dependencies)
+    @debug "Calling: fmi2GetJacobianDependency! with Update: $(updateType)"
 
     # 4: update the coloring for the new graph
     if isSubMatrix
