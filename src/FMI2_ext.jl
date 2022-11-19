@@ -612,6 +612,7 @@ end
 
 function init_jacobian!(jac::AbstractMatrix{fmi2Real},
                         dependencies::AbstractSparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64})
+    @info "init_jacobian!"
     I, J, _ = findnz(dependencies)
     for (i, j) in zip(I, J)
         # set all entires to NaN
@@ -649,32 +650,27 @@ function eventOccurred!(jac::Union{AbstractMatrix{fmi2Real}, Nothing},
     if isnothing(jac) || size(jac) == (0, 0)
         return nothing
     end
+    @info "eventOccurred!: Matrix $(eventType)"
     if size(jac) != size(dependencies)
         @warn "eventOccurred!: Size of the jacobian $(size(jac)) and the corresponding dependency matrix $(size(dependencies)) are unequal!"
         return nothing
     end
     
     dependencyTypes = selectDependencyTypes(eventType)
-    # exclude fmi2DependencyKindDependent because dependent state always have to be resampled
-    if eventType !== :dependent
-        deleteat!(dependencyTypes, 1)
-    end
     jac[dependencies .∈ Ref(dependencyTypes)] .= NaN
     return nothing
 end
+
 function eventOccurred!(jac::AbstractSparseMatrixCSC{fmi2Real, Int64}, 
                         dependencies::AbstractSparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64};
                         eventType::Symbol)
+    @info "eventOccurred!: SparseMatrix $(eventType)"
     if size(jac) != size(dependencies) && length(jac.nzval) == length(dependencies.nzval)
         @warn "eventOccurred!: Size of the jacobian $(size(jac)) and the corresponding dependency matrix $(size(dependencies)) are unequal!"
         return nothing
     end
     
     dependencyTypes = selectDependencyTypes(eventType)
-    # exclude fmi2DependencyKindDependent because dependent state always have to be resampled
-    if eventType !== :dependent
-        deleteat!(dependencyTypes, 1)
-    end
     jac.nzval[dependencies.nzval .∈ Ref(dependencyTypes)] .= NaN
     return nothing
 end
