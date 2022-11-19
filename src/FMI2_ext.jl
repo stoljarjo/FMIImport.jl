@@ -650,7 +650,7 @@ function eventOccurred!(jac::Union{AbstractMatrix{fmi2Real}, Nothing},
     if isnothing(jac) || size(jac) == (0, 0)
         return nothing
     end
-    @info "eventOccurred!: Matrix $(eventType)"
+    @debug "eventOccurred!: Matrix $(eventType)"
     if size(jac) != size(dependencies)
         @warn "eventOccurred!: Size of the jacobian $(size(jac)) and the corresponding dependency matrix $(size(dependencies)) are unequal!"
         return nothing
