@@ -50,24 +50,34 @@ function undual(e)
 end
 
 # in FMI2 we can use fmi2GetDirectionalDerivative for JVP-computations
-function fmi2JVP!(c::FMU2Component, mtxCache, ∂f_refs, ∂x_refs, seed)
-    if fmi2ProvidesDirectionalDerivative(c.fmu.modelDescription)
-        return fmi2GetDirectionalDerivative(c, ∂f_refs, ∂x_refs, seed)
-    else
-        if mtxCache == nothing || size(mtxCache) != (length(∂f_refs), length(∂x_refs))
+function fmi2JVP!(c::FMU2Component, mtxSymbol::Symbol, ∂f_refs, ∂x_refs, seed)
+    mtxCache = getfield(c, mtxSymbol)
+    if isnothing(mtxCache) || size(mtxCache) != (length(∂f_refs), length(∂x_refs))
+        if isdefined(c.fmu, :dependencies)
+            mtxCache = spzeros(fmi2Real, length(∂f_refs), length(∂x_refs))
+            init_jacobian!(mtxCache, c.fmu.dependencies)
+        else
             mtxCache = zeros(length(∂f_refs), length(∂x_refs))
-        end 
-        c.jacobianUpdate!(mtxCache, c, ∂f_refs, ∂x_refs)
-        return mtxCache * seed
-    end
+        end
+    end 
+    c.jacobianUpdate!(mtxCache, c, ∂f_refs, ∂x_refs)
+    setfield!(c, mtxSymbol, mtxCache)
+    return mtxCache * seed
 end
 
 # in FMI2 there is no helper for VJP-computations (but in FMI3) ...
-function fmi2VJP!(c::FMU2Component, mtxCache, ∂f_refs, ∂x_refs, seed)
-    if mtxCache == nothing || size(mtxCache) != (length(∂f_refs), length(∂x_refs))
-        mtxCache = zeros(length(∂f_refs), length(∂x_refs))
+function fmi2VJP!(c::FMU2Component, mtxSymbol::Symbol, ∂f_refs, ∂x_refs, seed)
+    mtxCache = getfield(c, mtxSymbol)
+    if isnothing(mtxCache) || size(mtxCache) != (length(∂f_refs), length(∂x_refs))
+        if isdefined(c.fmu, :dependencies)
+            mtxCache = spzeros(fmi2Real, length(∂f_refs), length(∂x_refs))
+            init_jacobian!(mtxCache, c.fmu.dependencies)
+        else
+            mtxCache = zeros(length(∂f_refs), length(∂x_refs))
+        end
     end 
     c.jacobianUpdate!(mtxCache, c, ∂f_refs, ∂x_refs)
+    setfield!(c, mtxSymbol, mtxCache)
     return mtxCache' * seed # this is the same as seed' * mtxCache (VJP)
 end
 
@@ -319,11 +329,11 @@ function _frule(Δtuple,
         end
 
         if derivatives && states
-            ∂dx += fmi2JVP!(c, c.A, c.fmu.modelDescription.derivativeValueReferences, c.fmu.modelDescription.stateValueReferences, Δx)
+            ∂dx += fmi2JVP!(c, :A, c.fmu.modelDescription.derivativeValueReferences, c.fmu.modelDescription.stateValueReferences, Δx)
         end
 
         if outputs && states
-            ∂y += fmi2JVP!(c, c.C, y_refs, c.fmu.modelDescription.stateValueReferences, Δx)
+            ∂y += fmi2JVP!(c, :C, y_refs, c.fmu.modelDescription.stateValueReferences, Δx)
         end
     end
 
@@ -334,11 +344,11 @@ function _frule(Δtuple,
         end
 
         if derivatives && inputs
-            ∂dx += fmi2JVP!(c, c.B, c.fmu.modelDescription.derivativeValueReferences, u_refs, Δu)
+            ∂dx += fmi2JVP!(c, :B, c.fmu.modelDescription.derivativeValueReferences, u_refs, Δu)
         end
 
         if outputs && inputs
-            ∂y += fmi2JVP!(c, c.D, y_refs, u_refs, Δu)
+            ∂y += fmi2JVP!(c, :D, y_refs, u_refs, Δu)
         end
     end
 
@@ -452,19 +462,19 @@ function _rrule(cRef,
         x_refs = c.fmu.modelDescription.stateValueReferences
 
         if derivatives && states
-            n_dx_x = fmi2VJP!(c, c.A, dx_refs, x_refs, d̄x) 
+            n_dx_x = fmi2VJP!(c, :A, dx_refs, x_refs, d̄x) 
         end
 
         if derivatives && inputs
-            n_dx_u = fmi2VJP!(c, c.B, dx_refs, u_refs, d̄x) 
+            n_dx_u = fmi2VJP!(c, :B, dx_refs, u_refs, d̄x) 
         end
 
         if outputs && states
-            n_y_x = fmi2VJP!(c, c.C, y_refs, x_refs, ȳ) 
+            n_y_x = fmi2VJP!(c, :C, y_refs, x_refs, ȳ) 
         end
 
         if outputs && inputs
-            n_y_u = fmi2VJP!(c, c.D, y_refs, u_refs, ȳ) 
+            n_y_u = fmi2VJP!(c, :D, y_refs, u_refs, ȳ) 
         end
 
         # sample time partials
