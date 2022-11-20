@@ -1,6 +1,6 @@
 using Graphs
 using Graphs: AbstractGraph
-using SparseArrays: findnz
+using SparseArrays: findnz, SparseMatrixCSC
 
 
 const global validUpdateTypes::IdDict{Symbol, Vector{fmi2DependencyKind}} = IdDict(
