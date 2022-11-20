@@ -815,21 +815,21 @@ function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real},
     return nothing
 end
 function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real}, 
-                          comp::FMU2Component{FMU2}, 
+                          comp::FMU2Component, 
                           rdx::fmi2ValueReference, 
                           rx::fmi2ValueReference; 
-                          steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
+                          steps::Union{Vector{fmi2Real}, Nothing} = nothing)
     fmi2GetJacobian!(jac, comp, [rdx], [rx]; steps=steps)
 end
 function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real}, 
-                          comp::FMU2Component{FMU2}, 
+                          comp::FMU2Component, 
                           rdx::Vector{fmi2ValueReference}, 
                           rx::fmi2ValueReference; 
                           steps::Union{Vector{fmi2Real}, Nothing} = nothing)
     fmi2GetJacobian!(jac, comp, rdx, [rx]; steps=steps)
 end
 function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real}, 
-                          comp::FMU2Component{FMU2}, 
+                          comp::FMU2Component, 
                           rdx::fmi2ValueReference, 
                           rx::Vector{fmi2ValueReference}; 
                           steps::Union{Vector{fmi2Real}, Nothing} = nothing)
@@ -838,7 +838,7 @@ end
 
 
 function fmi2GetJacobianDependency!(jac::SparseMatrixCSC{fmi2Real, Int64}, 
-                                    comp::FMU2Component{FMU2}, 
+                                    comp::FMU2Component, 
                                     rdx::Vector{fmi2ValueReference},
                                     rx::Vector{fmi2ValueReference},
                                     steps::Union{Vector{fmi2Real}, Nothing} = nothing)
