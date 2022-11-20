@@ -611,7 +611,7 @@ function fmi2SampleDirectionalDerivative!(c::FMU2Component,
 end
 
 function init_jacobian!(jac::AbstractMatrix{fmi2Real},
-                        dependencies::AbstractSparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64})
+                        dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64})
     @info "init_jacobian!"
     I, J, _ = findnz(dependencies)
     for (i, j) in zip(I, J)
@@ -644,8 +644,8 @@ function updateJacobianEntires!(jac::AbstractMatrix{fmi2Real},
     nothing
 end
 
-function eventOccurred!(jac::Union{AbstractMatrix{fmi2Real}, Nothing}, 
-                        dependencies::AbstractSparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64};
+function eventOccurred!(jac::Union{Matrix{fmi2Real}, Nothing}, 
+                        dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64};
                         eventType::Symbol)
     if isnothing(jac) || size(jac) == (0, 0)
         return nothing
@@ -661,10 +661,10 @@ function eventOccurred!(jac::Union{AbstractMatrix{fmi2Real}, Nothing},
     return nothing
 end
 
-function eventOccurred!(jac::AbstractSparseMatrixCSC{fmi2Real, Int64}, 
-                        dependencies::AbstractSparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64};
+function eventOccurred!(jac::SparseMatrixCSC{fmi2Real, Int64}, 
+                        dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64};
                         eventType::Symbol)
-    @info "eventOccurred!: SparseMatrix $(eventType)"
+    @debug "eventOccurred!: SparseMatrix $(eventType)"
     if size(jac) != size(dependencies) && length(jac.nzval) == length(dependencies.nzval)
         @warn "eventOccurred!: Size of the jacobian $(size(jac)) and the corresponding dependency matrix $(size(dependencies)) are unequal!"
         return nothing
@@ -675,7 +675,7 @@ function eventOccurred!(jac::AbstractSparseMatrixCSC{fmi2Real, Int64},
     return nothing
 end
 
-function selectUpdateType(jac::Union{AbstractMatrix{fmi2Real}, Nothing}, dependencies::AbstractSparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64}) ::Symbol
+function selectUpdateType(jac::Union{Matrix{fmi2Real}, Nothing}, dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64}) ::Symbol
     if isnothing(jac) || size(jac) != size(dependencies)
         updateType = :all
     # check if the values for update type 1 or 2 are missing    
@@ -688,7 +688,7 @@ function selectUpdateType(jac::Union{AbstractMatrix{fmi2Real}, Nothing}, depende
     end
     return updateType
 end
-function selectUpdateType(jac::AbstractSparseMatrixCSC{fmi2Real, Int64}, dependencies::AbstractSparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64}) ::Symbol
+function selectUpdateType(jac::SparseMatrixCSC{fmi2Real, Int64}, dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64}) ::Symbol
     if length(jac.nzval) != length(dependencies.nzval)
         updateType = :all
     # check if the values for update type 1 or 2 are missing    
@@ -796,9 +796,9 @@ For optimization, if the FMU's model description has the optional entry 'depende
 """
 function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real},
                           comp::FMU2Component,
-                          rdx::AbstractArray{fmi2ValueReference},
-                          rx::AbstractArray{fmi2ValueReference};
-                          steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
+                          rdx::Vector{fmi2ValueReference},
+                          rx::Vector{fmi2ValueReference};
+                          steps::Union{Vector{fmi2Real}, Nothing} = nothing)
 
     @assert size(jac) == (length(rdx), length(rx)) ["fmi2GetJacobian!: Dimension missmatch between `jac` $(size(jac)), `rdx` ($length(rdx)) and `rx` ($length(rx))."]
 
@@ -807,40 +807,41 @@ function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real},
     end
 
     if isdefined(comp.fmu, :dependencies)
-        fmi2GetJacobianDependency!(jac, comp, rdx, rx)
+        fmi2GetJacobianDependency!(jac, comp, rdx, rx, steps)
     else
-        fmi2GetJacobianNoDependency!(jac, comp, rdx, rx)
+        fmi2GetJacobianNoDependency!(jac, comp, rdx, rx, steps)
     end
     
     return nothing
 end
 function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real}, 
-                          comp::FMU2Component, 
+                          comp::FMU2Component{FMU2}, 
                           rdx::fmi2ValueReference, 
                           rx::fmi2ValueReference; 
                           steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
     fmi2GetJacobian!(jac, comp, [rdx], [rx]; steps=steps)
 end
 function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real}, 
-                          comp::FMU2Component, 
-                          rdx::AbstractArray{fmi2ValueReference}, 
+                          comp::FMU2Component{FMU2}, 
+                          rdx::Vector{fmi2ValueReference}, 
                           rx::fmi2ValueReference; 
-                          steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
+                          steps::Union{Vector{fmi2Real}, Nothing} = nothing)
     fmi2GetJacobian!(jac, comp, rdx, [rx]; steps=steps)
 end
 function fmi2GetJacobian!(jac::AbstractMatrix{fmi2Real}, 
-                          comp::FMU2Component, 
+                          comp::FMU2Component{FMU2}, 
                           rdx::fmi2ValueReference, 
-                          rx::AbstractArray{fmi2ValueReference}; 
-                          steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
+                          rx::Vector{fmi2ValueReference}; 
+                          steps::Union{Vector{fmi2Real}, Nothing} = nothing)
     fmi2GetJacobian!(jac, comp, [rdx], rx; steps=steps)
 end
 
 
-function fmi2GetJacobianDependency!(jac::AbstractSparseMatrixCSC{fmi2Real, Int64}, 
-                                    comp::FMU2Component, 
-                                    rdx::AbstractArray{fmi2ValueReference},
-                                    rx::AbstractArray{fmi2ValueReference})
+function fmi2GetJacobianDependency!(jac::SparseMatrixCSC{fmi2Real, Int64}, 
+                                    comp::FMU2Component{FMU2}, 
+                                    rdx::Vector{fmi2ValueReference},
+                                    rx::Vector{fmi2ValueReference},
+                                    steps::Union{Vector{fmi2Real}, Nothing} = nothing)
     @debug "Calling: fmi2GetJacobianDependency!"
     ddsupported = fmi2ProvidesDirectionalDerivative(comp.fmu)
     
@@ -874,7 +875,7 @@ function fmi2GetJacobianDependency!(jac::AbstractSparseMatrixCSC{fmi2Real, Int64
 
         if ddsupported
             fill!(directionalDerivatives, zero(fmi2Real))
-            fmi2GetDirectionalDerivative!(comp, rdx, rx[indices], directionalDerivatives)
+            fmi2GetDirectionalDerivative!(comp, rdx, rx[indices], directionalDerivatives, steps)
             setJacobianEntries!(jac, I, J, directionalDerivatives, indices)
         else 
             fmi2SampleDirectionalDerivative!(comp, rdx, rx[indices], @view(jac[:, indices]))
@@ -886,7 +887,8 @@ end
 function fmi2GetJacobianNoDependency!(jac::AbstractMatrix{fmi2Real}, 
                                     comp::FMU2Component, 
                                     rdx::Array{fmi2ValueReference}, 
-                                    rx::Array{fmi2ValueReference})
+                                    rx::Array{fmi2ValueReference},
+                                    steps::Union{Vector{fmi2Real}, Nothing} = nothing)
     @debug "Calling: fmi2GetJacobianNoDependency!"
     ddsupported = fmi2ProvidesDirectionalDerivative(comp.fmu)
 
@@ -897,7 +899,7 @@ function fmi2GetJacobianNoDependency!(jac::AbstractMatrix{fmi2Real},
 
         if length(sensitive_rdx) > 0
             if ddsupported
-                fmi2GetDirectionalDerivative!(comp, sensitive_rdx, [rx[i]], view(jac, sensitive_rdx_inds, i))
+                fmi2GetDirectionalDerivative!(comp, sensitive_rdx, [rx[i]], view(jac, sensitive_rdx_inds, i), steps)
             else
                 fmi2SampleDirectionalDerivative!(comp, sensitive_rdx, [rx[i]], view(jac, sensitive_rdx_inds, i))
             end

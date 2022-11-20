@@ -3,7 +3,7 @@ using Graphs: AbstractGraph
 using SparseArrays: findnz
 
 
-const global validUpdateTypes = IdDict(
+const global validUpdateTypes::IdDict{Symbol, Vector{fmi2DependencyKind}} = IdDict(
     :all => [fmi2DependencyKindDependent, fmi2DependencyKindTunable, fmi2DependencyKindDiscrete, fmi2DependencyKindConstant, fmi2DependencyKindFixed],
     :constant => [fmi2DependencyKindDependent, fmi2DependencyKindTunable, fmi2DependencyKindDiscrete, fmi2DependencyKindConstant, fmi2DependencyKindFixed],
     :fixed => [fmi2DependencyKindDependent, fmi2DependencyKindTunable, fmi2DependencyKindDiscrete, fmi2DependencyKindConstant, fmi2DependencyKindFixed],
@@ -50,7 +50,7 @@ function updateGraph(fmu::FMU2; updateType::Symbol) ::SimpleGraph
     end
     return graph
 end
-function updateGraph(dependencies::AbstractMatrix{fmi2DependencyKind}; updateType::Symbol) ::SimpleGraph
+function updateGraph(dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64}; updateType::Symbol) ::SimpleGraph
     I, J, V = findnz(dependencies)
     addOffsetToVertex!(J, dependencies)
     dependencyTypes = selectDependencyTypes(updateType)
