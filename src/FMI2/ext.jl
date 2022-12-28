@@ -660,6 +660,9 @@ function updateJacobianEntires!(jac::AbstractMatrix{fmi2Real},
 end
 
 function eventOccurred!(fmu::FMU2; eventType::Symbol)
+    if !isdefined(fmu, :updateType)
+        fmu.updateType = :all
+    end
     fmu.lastUpdateType = fmu.updateType
     fmu.updateType = eventType
     return nothing
