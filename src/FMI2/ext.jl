@@ -659,64 +659,6 @@ function updateJacobianEntires!(jac::AbstractMatrix{fmi2Real},
     nothing
 end
 
-# function eventOccurred!(jac::Union{Matrix{fmi2Real}, Nothing}, 
-#                         dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64};
-#                         eventType::Symbol)
-#     if isnothing(jac) || size(jac) == (0, 0)
-#         return nothing
-#     end
-#     @debug "eventOccurred!: Matrix $(eventType)"
-#     if size(jac) != size(dependencies)
-#         @warn "eventOccurred!: Size of the jacobian $(size(jac)) and the corresponding dependency matrix $(size(dependencies)) are unequal!"
-#         return nothing
-#     end
-    
-#     dependencyTypes = selectDependencyTypes(eventType)
-#     jac[dependencies .∈ Ref(dependencyTypes)] .= NaN
-#     return nothing
-# end
-
-# function eventOccurred!(jac::SparseMatrixCSC{fmi2Real, Int64}, 
-#                         dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64};
-#                         eventType::Symbol)
-#     @debug "eventOccurred!: SparseMatrix $(eventType)"
-#     if size(jac) != size(dependencies) && length(jac.nzval) == length(dependencies.nzval)
-#         @warn "eventOccurred!: Size of the jacobian $(size(jac)) and the corresponding dependency matrix $(size(dependencies)) are unequal!"
-#         return nothing
-#     end
-    
-#     dependencyTypes = selectDependencyTypes(eventType)
-#     jac.nzval[dependencies.nzval .∈ Ref(dependencyTypes)] .= NaN
-#     return nothing
-# end
-
-# function selectUpdateType(jac::Union{Matrix{fmi2Real}, Nothing}, dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64}) ::Symbol
-#     if isnothing(jac) || size(jac) != size(dependencies)
-#         updateType = :all
-#     # check if the values for update type 1 or 2 are missing    
-#     elseif any(isnan.(jac[dependencies .∈ Ref([fmi2DependencyKindConstant, fmi2DependencyKindFixed])]))
-#         updateType = :constant
-#     elseif any(isnan.(jac[dependencies .∈ Ref([fmi2DependencyKindTunable, fmi2DependencyKindDiscrete])]))
-#         updateType = :tunable
-#     else
-#         updateType = :dependent
-#     end
-#     return updateType
-# end
-# function selectUpdateType(jac::SparseMatrixCSC{fmi2Real, Int64}, dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64}) ::Symbol
-#     if length(jac.nzval) != length(dependencies.nzval)
-#         updateType = :all
-#     # check if the values for update type 1 or 2 are missing    
-#     elseif any(isnan.(jac.nzval[dependencies.nzval .∈ Ref([fmi2DependencyKindConstant, fmi2DependencyKindFixed])]))
-#         updateType = :constant
-#     elseif any(isnan.(jac.nzval[dependencies.nzval .∈ Ref([fmi2DependencyKindTunable, fmi2DependencyKindDiscrete])]))
-#         updateType = :tunable
-#     else
-#         updateType = :dependent
-#     end
-#     return updateType
-# end
-
 function eventOccurred!(fmu::FMU2; eventType::Symbol)
     fmu.lastUpdateType = fmu.updateType
     fmu.updateType = eventType
