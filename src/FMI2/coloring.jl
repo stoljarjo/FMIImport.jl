@@ -264,27 +264,31 @@ function getMinColor(forbidden_colors::AbstractVector, vertex_i::Integer) ::Int
     c
 end
 
-function updateColoring!(fmu::FMU2; updateType::Symbol, coloringType::Symbol=:columns) ::AbstractVector
+function updateColoring!(fmu::FMU2; coloringType::Symbol=:columns) ::AbstractVector
     if !isdefined(fmu, :graph)
         createGraph(fmu)
     end
 
     numColors = length(getVertices(size(fmu.dependencies); coloringType=coloringType))
-    if isdefined(fmu, :colors) && length(fmu.colors) == numColors && fmu.colorType == coloringType && fmu.updateType == updateType 
+    if isdefined(fmu, :colors) && length(fmu.colors) == numColors && 
+        fmu.colorType == coloringType && 
+        isdefined(fmu, :updateType) && isdefined(fmu, :updateType) && fmu.updateType == fmu.lastUpdateType 
+        
         return fmu.colors
     end
 
-    graph = updateGraph(fmu; updateType=updateType)
+    graph = updateGraph(fmu; updateType=selectUpdateType(fmu))
     
     fmu.colorType = coloringType
-    fmu.updateType = updateType
+    fmu.lastUpdateType = fmu.updateType
     fmu.colors = partialColoringD2(graph, size(fmu.dependencies); coloringType=coloringType)
     return fmu.colors
 end
-function updateColoring!(fmu::FMU2, dependencies::AbstractMatrix{fmi2DependencyKind}; 
-                        updateType::Symbol, coloringType::Symbol=:columns) ::AbstractVector
+function updateColoring!(fmu::FMU2, 
+                         dependencies::AbstractMatrix{fmi2DependencyKind}; 
+                         coloringType::Symbol=:columns) ::AbstractVector
 
-    graph = updateGraph(dependencies; updateType=updateType)
+    graph = updateGraph(dependencies; updateType=selectUpdateType(fmu))
     
     fmu.colorType = coloringType
     fmu.colors = partialColoringD2(graph, size(dependencies); coloringType=coloringType)

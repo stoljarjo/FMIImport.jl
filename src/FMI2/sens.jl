@@ -15,19 +15,23 @@ import ChainRulesCore: ZeroTangent, NoTangent, @thunk
 
 # in FMI2 we can use fmi2GetDirectionalDerivative for JVP-computations
 function fmi2JVP!(c::FMU2Component, mtxCache::Symbol, ∂f_refs, ∂x_refs, seed)
-
     if c.fmu.executionConfig.JVPBuiltInDerivatives && fmi2ProvidesDirectionalDerivative(c.fmu.modelDescription)
-        res = getfield(c, resCache)
-        if res == nothing || size(res) != (length(seed),)
-            res = zeros(length(seed))
-            setfield!(c, resCache, res)
+        res = getfield(c, mtxCache)
+        if res == nothing || size(res.b) != (length(seed),)
+            res.b = zeros(length(seed))
+            setfield!(c, mtxCache, res)
         end 
-
-        fmi2GetDirectionalDerivative!(c, ∂f_refs, ∂x_refs, res, seed)
-        return res
+        fmi2GetDirectionalDerivative!(c, ∂f_refs, ∂x_refs, res.b, seed)
+        return res.b
     else
         jac = getfield(c, mtxCache)
         
+        if isdefined(c.fmu, :dependencies) && typeof(jac.mtx) == Matrix{fmi2Real}
+            jac.mtx = spzeros(fmi2Real, length(∂f_refs), length(∂x_refs))
+            init_jacobian!(jac.mtx, c.fmu.dependencies)
+            setfield!(c, mtxCache, jac)
+        end
+       
         return FMICore.jvp!(jac, seed; ∂f_refs=∂f_refs, ∂x_refs=∂x_refs)
     end
 end

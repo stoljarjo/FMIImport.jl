@@ -8,7 +8,7 @@
 
 using Libdl
 using ZipFile
-using SparseArrays: spzeros, findnz, nnz, AbstractSparseMatrixCSC
+using SparseArrays: spzeros, findnz, nnz, AbstractSparseMatrixCSC, SparseMatrixCSC
 import Downloads
 
 """
@@ -532,9 +532,9 @@ Computes a linear combination of the partial derivatives of h with respect to th
 See also [`fmi2GetDirectionalDerivative!`](@ref) ,[`fmi2GetDirectionalDerivative`](@ref).
 """
 function fmi2SampleJacobian(c::FMU2Component,
-                                       vUnknown_ref::AbstractArray{fmi2ValueReference},
-                                       vKnown_ref::AbstractArray{fmi2ValueReference},
-                                       steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
+                            vUnknown_ref::AbstractArray{fmi2ValueReference},
+                            vKnown_ref::AbstractArray{fmi2ValueReference},
+                            steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
 
     mtx = zeros(fmi2Real, length(vUnknown_ref), length(vKnown_ref))
 
@@ -586,10 +586,10 @@ Computes a linear combination of the partial derivatives of h with respect to th
 See also [`fmi2GetDirectionalDerivative!`](@ref) ,[`fmi2GetDirectionalDerivative`](@ref).
 """
 function fmi2SampleJacobian!(mtx::Matrix{<:Real},
-    c::FMU2Component,
-                                          vUnknown_ref::AbstractArray{fmi2ValueReference},
-                                          vKnown_ref::AbstractArray{fmi2ValueReference},
-                                          steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
+                             c::FMU2Component,
+                             vUnknown_ref::AbstractArray{fmi2ValueReference},
+                             vKnown_ref::AbstractArray{fmi2ValueReference},
+                             steps::Union{AbstractArray{fmi2Real}, Nothing} = nothing)
 
     step = 0.0
 
@@ -659,62 +659,77 @@ function updateJacobianEntires!(jac::AbstractMatrix{fmi2Real},
     nothing
 end
 
-function eventOccurred!(jac::Union{Matrix{fmi2Real}, Nothing}, 
-                        dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64};
-                        eventType::Symbol)
-    if isnothing(jac) || size(jac) == (0, 0)
-        return nothing
-    end
-    @debug "eventOccurred!: Matrix $(eventType)"
-    if size(jac) != size(dependencies)
-        @warn "eventOccurred!: Size of the jacobian $(size(jac)) and the corresponding dependency matrix $(size(dependencies)) are unequal!"
-        return nothing
-    end
+# function eventOccurred!(jac::Union{Matrix{fmi2Real}, Nothing}, 
+#                         dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64};
+#                         eventType::Symbol)
+#     if isnothing(jac) || size(jac) == (0, 0)
+#         return nothing
+#     end
+#     @debug "eventOccurred!: Matrix $(eventType)"
+#     if size(jac) != size(dependencies)
+#         @warn "eventOccurred!: Size of the jacobian $(size(jac)) and the corresponding dependency matrix $(size(dependencies)) are unequal!"
+#         return nothing
+#     end
     
-    dependencyTypes = selectDependencyTypes(eventType)
-    jac[dependencies .∈ Ref(dependencyTypes)] .= NaN
+#     dependencyTypes = selectDependencyTypes(eventType)
+#     jac[dependencies .∈ Ref(dependencyTypes)] .= NaN
+#     return nothing
+# end
+
+# function eventOccurred!(jac::SparseMatrixCSC{fmi2Real, Int64}, 
+#                         dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64};
+#                         eventType::Symbol)
+#     @debug "eventOccurred!: SparseMatrix $(eventType)"
+#     if size(jac) != size(dependencies) && length(jac.nzval) == length(dependencies.nzval)
+#         @warn "eventOccurred!: Size of the jacobian $(size(jac)) and the corresponding dependency matrix $(size(dependencies)) are unequal!"
+#         return nothing
+#     end
+    
+#     dependencyTypes = selectDependencyTypes(eventType)
+#     jac.nzval[dependencies.nzval .∈ Ref(dependencyTypes)] .= NaN
+#     return nothing
+# end
+
+# function selectUpdateType(jac::Union{Matrix{fmi2Real}, Nothing}, dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64}) ::Symbol
+#     if isnothing(jac) || size(jac) != size(dependencies)
+#         updateType = :all
+#     # check if the values for update type 1 or 2 are missing    
+#     elseif any(isnan.(jac[dependencies .∈ Ref([fmi2DependencyKindConstant, fmi2DependencyKindFixed])]))
+#         updateType = :constant
+#     elseif any(isnan.(jac[dependencies .∈ Ref([fmi2DependencyKindTunable, fmi2DependencyKindDiscrete])]))
+#         updateType = :tunable
+#     else
+#         updateType = :dependent
+#     end
+#     return updateType
+# end
+# function selectUpdateType(jac::SparseMatrixCSC{fmi2Real, Int64}, dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64}) ::Symbol
+#     if length(jac.nzval) != length(dependencies.nzval)
+#         updateType = :all
+#     # check if the values for update type 1 or 2 are missing    
+#     elseif any(isnan.(jac.nzval[dependencies.nzval .∈ Ref([fmi2DependencyKindConstant, fmi2DependencyKindFixed])]))
+#         updateType = :constant
+#     elseif any(isnan.(jac.nzval[dependencies.nzval .∈ Ref([fmi2DependencyKindTunable, fmi2DependencyKindDiscrete])]))
+#         updateType = :tunable
+#     else
+#         updateType = :dependent
+#     end
+#     return updateType
+# end
+
+function eventOccurred!(fmu::FMU2; eventType::Symbol)
+    fmu.lastUpdateType = fmu.updateType
+    fmu.updateType = eventType
     return nothing
 end
 
-function eventOccurred!(jac::SparseMatrixCSC{fmi2Real, Int64}, 
-                        dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64};
-                        eventType::Symbol)
-    @debug "eventOccurred!: SparseMatrix $(eventType)"
-    if size(jac) != size(dependencies) && length(jac.nzval) == length(dependencies.nzval)
-        @warn "eventOccurred!: Size of the jacobian $(size(jac)) and the corresponding dependency matrix $(size(dependencies)) are unequal!"
-        return nothing
+function selectUpdateType(fmu::FMU2) ::Symbol
+    if !isdefined(fmu, :updateType)
+        fmu.updateType = :all
+        fmu.lastUpdateType = :all
     end
-    
-    dependencyTypes = selectDependencyTypes(eventType)
-    jac.nzval[dependencies.nzval .∈ Ref(dependencyTypes)] .= NaN
-    return nothing
-end
 
-function selectUpdateType(jac::Union{Matrix{fmi2Real}, Nothing}, dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64}) ::Symbol
-    if isnothing(jac) || size(jac) != size(dependencies)
-        updateType = :all
-    # check if the values for update type 1 or 2 are missing    
-    elseif any(isnan.(jac[dependencies .∈ Ref([fmi2DependencyKindConstant, fmi2DependencyKindFixed])]))
-        updateType = :constant
-    elseif any(isnan.(jac[dependencies .∈ Ref([fmi2DependencyKindTunable, fmi2DependencyKindDiscrete])]))
-        updateType = :tunable
-    else
-        updateType = :dependent
-    end
-    return updateType
-end
-function selectUpdateType(jac::SparseMatrixCSC{fmi2Real, Int64}, dependencies::SparseMatrixCSC{Union{Nothing, fmi2DependencyKind}, Int64}) ::Symbol
-    if length(jac.nzval) != length(dependencies.nzval)
-        updateType = :all
-    # check if the values for update type 1 or 2 are missing    
-    elseif any(isnan.(jac.nzval[dependencies.nzval .∈ Ref([fmi2DependencyKindConstant, fmi2DependencyKindFixed])]))
-        updateType = :constant
-    elseif any(isnan.(jac.nzval[dependencies.nzval .∈ Ref([fmi2DependencyKindTunable, fmi2DependencyKindDiscrete])]))
-        updateType = :tunable
-    else
-        updateType = :dependent
-    end
-    return updateType
+    return fmu.updateType
 end
 
 """
@@ -872,14 +887,14 @@ function fmi2GetJacobianDependency!(jac::SparseMatrixCSC{fmi2Real, Int64},
     end
 
     # 3: select update type
-    updateType = selectUpdateType(jac, dependencies)
-    @debug "Calling: fmi2GetJacobianDependency! with Update: $(updateType)"
+    # @debug "Calling: fmi2GetJacobianDependency! with Update: $(comp.fmu.updateType)"
+    # @info "Calling: fmi2GetJacobianDependency! with Update: $(comp.fmu.updateType)"
 
     # 4: update the coloring for the new graph
     if isSubMatrix
-        updateColoring!(comp.fmu, dependenciesSection; updateType=updateType, coloringType=:columns)
+        updateColoring!(comp.fmu, dependenciesSection; coloringType=:columns)
     else
-        updateColoring!(comp.fmu; updateType=updateType, coloringType=:columns)
+        updateColoring!(comp.fmu; coloringType=:columns)
     end
 
     directionalDerivatives = zeros(fmi2Real, length(rdx))

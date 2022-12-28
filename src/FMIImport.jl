@@ -33,6 +33,7 @@ include("utils.jl")
 ### FMI2 ###
 
 include("FMI2/prep.jl")
+include("FMI2/coloring.jl")
 include("FMI2/convert.jl")
 include("FMI2/c.jl")
 include("FMI2/int.jl")
